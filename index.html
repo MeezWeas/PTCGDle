@@ -38,6 +38,71 @@
       color: #1b1b2f;
     }
 
+    /* The pack summary under the pack */
+    #pack-summary {
+      position: relative;
+      z-index: 2;
+      max-width: 560px;
+      margin: 28px auto 0;
+      padding: 18px 20px;
+      border: 2px solid #ffcb05;
+      border-radius: 14px;
+      background: #26264a;
+      animation: toast-in 0.4s ease-out;
+    }
+    #pack-summary[hidden] { display: none; }
+    #pack-summary h2 { margin: 0 0 6px; font-size: 1rem; color: #ffcb05; text-transform: uppercase; letter-spacing: 0.05em; }
+    .summary-value { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .summary-points { font-size: 2.2rem; font-weight: 800; }
+    .summary-sub { opacity: 0.8; margin-bottom: 10px; }
+    .summary-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0; }
+    .summary-chip { padding: 4px 10px; border: 2px solid #3a3a66; border-radius: 999px; font-size: 0.8rem; }
+    #achievement-summary { margin: 0 0 16px; opacity: 0.85; }
+    #achievement-tools { margin: 0 0 20px; }
+    #achievement-tools input {
+      font-size: 1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+    }
+    .ach-section {
+      max-width: 1100px;
+      margin: 0 auto 12px;
+      text-align: left;
+      border: 2px solid #3a3a66;
+      border-radius: 12px;
+      background: #1f1f3a;
+    }
+    .ach-section > summary { padding: 14px 16px; cursor: pointer; font-weight: 700; color: #ffcb05; }
+    .ach-section[open] > summary { border-bottom: 1px solid #3a3a66; }
+    .ach-group { margin: 18px 14px 8px; font-size: 0.95rem; opacity: 0.85; }
+    .ach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 0 14px 14px;
+    }
+    .ach {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 2px solid #ffcb05;
+      background: #26264a;
+      box-shadow: 0 0 12px rgba(255, 203, 5, 0.25);
+    }
+    .ach-icon { flex: none; width: 48px; font-size: 2rem; text-align: center; }
+    .ach-body { flex: 1; min-width: 0; }
+    .ach-name { font-weight: 700; }
+    .ach-points { display: block; font-size: 0.75rem; font-weight: 600; }
+    .ach-desc { margin-top: 2px; font-size: 0.85rem; opacity: 0.8; }
+    @keyframes toast-in {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
     /* ---------- The collection page's sorting bar ---------- */
     #collection-toolbar {
       margin-bottom: 8px;
@@ -510,6 +575,8 @@
   <nav id="tabs">
     <button class="tab-button active" id="tab-pack" type="button">Open packs</button>
     <button class="tab-button" id="tab-collection" type="button">Collection (<span id="collection-count">0</span>)</button>
+    <button class="tab-button" id="tab-achievements" type="button">Achievements (<span id="achievement-count">0</span>)</button>
+
   </nav>
 
   <!-- PAGE 1: opening packs. -->
@@ -527,6 +594,9 @@
 
     <!-- The script puts the cards in here. -->
     <div id="pack"></div>
+
+    <!-- Appears once every card is flipped: the points this pack earned. -->
+    <div id="pack-summary" hidden></div>
   </section>
 
   <!-- PAGE 2: every card you've ever pulled. -->
@@ -549,6 +619,19 @@
 
     <!-- The script puts the collection's cards in here. -->
     <div id="collection-grid"></div>
+  </section>
+
+  <!-- PAGE 3: the achievements you've earned. Locked ones stay hidden. -->
+  <section id="view-achievements" hidden>
+    <!-- A line like "12 achievements unlocked · 340 points". -->
+    <p id="achievement-summary"></p>
+
+    <div id="achievement-tools">
+      <input id="achievement-search" type="search" placeholder="Search your achievements">
+    </div>
+
+    <!-- The script puts the earned achievements in here. -->
+    <div id="achievement-list"></div>
   </section>
 
   <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
@@ -582,7 +665,7 @@
     const MAX_ROUNDS = 10;
 
     // Set this to false while testing if you want unlimited packs.
-    const ONE_PACK_PER_DAY = false;
+    const ONE_PACK_PER_DAY = true;
 
     // The name we use to save your pack in the browser's storage.
     const STORAGE_KEY = "lastPack";
@@ -612,6 +695,13 @@
     const sortSelect = document.getElementById("sort-select");
     const collectionSummary = document.getElementById("collection-summary");
     const collectionGrid = document.getElementById("collection-grid");
+    const packSummary = document.getElementById("pack-summary");
+    const tabAchievements = document.getElementById("tab-achievements");
+    const achievementCount = document.getElementById("achievement-count");
+    const viewAchievements = document.getElementById("view-achievements");
+    const achievementSummary = document.getElementById("achievement-summary");
+    const achievementList = document.getElementById("achievement-list");
+    const achievementSearchBox = document.getElementById("achievement-search");
     const modal = document.getElementById("modal");
     const modalClose = document.getElementById("modal-close");
     const modalStage = document.getElementById("modal-stage");
@@ -1144,6 +1234,8 @@
           packFlippers[index]();
           savePack();
           updateRevealButton();
+          // Wait for the flip to finish before announcing any achievement.
+          updatePackSummary(900);
         } else {
           // Click on a flipped card: show it big, with its effects.
           openModal(entry, true);
@@ -1179,6 +1271,7 @@
       });
       hint.hidden = false;       // show the tip about clicking
       updateRevealButton();
+      updatePackSummary(0);
     }
 
     // Show the "Reveal all cards" button only while some card is face down.
@@ -1207,6 +1300,8 @@
       saveCollection();   // save once, after all the cards are marked
       savePack();
       updateRevealButton();
+      // Wait until the last flip has finished before announcing achievements.
+      updatePackSummary(delay + 900);
     }
 
     revealButton.addEventListener("click", revealAll);
@@ -1265,7 +1360,8 @@
         imageUrl: entry.imageUrl,
         variant: entry.variant,
         revealed: entry.flipped === true,
-        packDate: entry.packDate || getToday()
+        packDate: entry.packDate || getToday(),
+        packId: entry.packId
       });
       // Remember the link, so flipping the card later can update the collection.
       entry.collectionId = "c" + seq;
@@ -1488,6 +1584,7 @@
     function renderCollection() {
       collectionGrid.innerHTML = "";
 
+      updateAchievementCount();
       if (collection.length === 0) {
         collectionSummary.textContent = "Your collection is empty. Open a pack to start collecting!";
         return;
@@ -1513,23 +1610,28 @@
 
       let summary = collection.length + (collection.length === 1 ? " card" : " cards");
       summary += " · Total value " + formatMoney(totalValue, "USD") + " (TCGplayer)";
+      summary += " · " + fmt(sumPoints(earnedAchievements(collection))) + " points";
       if (unflipped > 0) {
         summary += " · " + unflipped + " not flipped yet";
       }
       collectionSummary.textContent = summary;
     }
 
-    // Switch between the "Open packs" page and the "Collection" page.
+    // Switch between the three pages.
     function showView(name) {
-      const showingCollection = name === "collection";
-      viewPack.hidden = showingCollection;
-      viewCollection.hidden = !showingCollection;
-      tabPack.classList.toggle("active", !showingCollection);
-      tabCollection.classList.toggle("active", showingCollection);
+      viewPack.hidden = name !== "pack";
+      viewCollection.hidden = name !== "collection";
+      viewAchievements.hidden = name !== "achievements";
+      tabPack.classList.toggle("active", name === "pack");
+      tabCollection.classList.toggle("active", name === "collection");
+      tabAchievements.classList.toggle("active", name === "achievements");
 
-      // Redraw the collection each time you visit it, so it's always current.
-      if (showingCollection) {
+      // Redraw a page each time you visit it, so it's always current.
+      if (name === "collection") {
         renderCollection();
+      }
+      if (name === "achievements") {
+        renderAchievements();
       }
     }
 
@@ -1538,6 +1640,9 @@
     });
     tabCollection.addEventListener("click", function () {
       showView("collection");
+    });
+    tabAchievements.addEventListener("click", function () {
+      showView("achievements");
     });
 
     // Re-sort the collection (and remember the choice) when the menu changes.
@@ -1549,6 +1654,1713 @@
       }
       renderCollection();
     });
+
+    // ---------- Achievements ----------
+
+    // ----- Points and tiers -----
+    // The harder an achievement is, the more points it's worth. A tier is
+    // just a name and a color for a range of points.
+    const TIERS = [
+      { name: "Mythic",    min: 250, color: "#ff5252" },
+      { name: "Legendary", min: 100, color: "#ffa726" },
+      { name: "Epic",      min: 50,  color: "#ab47bc" },
+      { name: "Rare",      min: 25,  color: "#42a5f5" },
+      { name: "Uncommon",  min: 10,  color: "#66bb6a" },
+      { name: "Common",    min: 0,   color: "#9aa4b2" }
+    ];
+
+    // Find the tier for a number of points.
+    function getTier(points) {
+      for (let i = 0; i < TIERS.length; i++) {
+        if (points >= TIERS[i].min) {
+          return TIERS[i];
+        }
+      }
+      return TIERS[TIERS.length - 1];
+    }
+
+    // Point values are rounded to these "nice" numbers.
+    const NICE_POINTS = [5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150,
+      200, 250, 300, 400, 500, 600, 750, 1000, 1250, 1500, 2000, 2500, 3000, 4000, 5000];
+
+    // Round a number to the closest "nice" point value.
+    function snapPoints(value) {
+      let best = NICE_POINTS[0];
+      NICE_POINTS.forEach(function (nice) {
+        if (Math.abs(nice - value) < Math.abs(best - value)) {
+          best = nice;
+        }
+      });
+      return best;
+    }
+
+    // Numbers with commas ("1,250") and whole-dollar amounts ("$1,250").
+    function fmt(number) {
+      return number.toLocaleString("en-US");
+    }
+    function dollars(number) {
+      return "$" + fmt(number);
+    }
+
+    // ----- The lists the achievements are built from -----
+
+    // Rarities, matched by words in the rarity text. "base" is roughly how
+    // many points the first one is worth (rarer rarities are worth more).
+    const RARITY_GROUPS = [
+      { key: "common", label: "Common", base: 5,
+        test: function (r) { return r.includes("common") && !r.includes("uncommon"); } },
+      { key: "uncommon", label: "Uncommon", base: 5,
+        test: function (r) { return r.includes("uncommon"); } },
+      { key: "rare", label: "Rare", base: 8,
+        test: function (r) { return r === "rare"; } },
+      { key: "holo", label: "Holo Rare", base: 12,
+        test: function (r) { return r.includes("holo"); } },
+      { key: "double", label: "Double Rare", base: 15,
+        test: function (r) { return r.includes("double"); } },
+      { key: "ultra", label: "Ultra Rare", base: 30,
+        test: function (r) { return r.includes("ultra"); } },
+      { key: "illustration", label: "Illustration Rare", base: 25,
+        test: function (r) { return r.includes("illustration") && !r.includes("special"); } },
+      { key: "special", label: "Special Illustration Rare", base: 60,
+        test: function (r) { return r.includes("special illustration"); } },
+      { key: "hyper", label: "Hyper Rare", base: 60,
+        test: function (r) { return r.includes("hyper"); } },
+      { key: "secret", label: "Secret Rare", base: 60,
+        test: function (r) { return r.includes("secret"); } },
+      { key: "acespec", label: "ACE SPEC Rare", base: 20,
+        test: function (r) { return r.includes("ace spec"); } },
+      { key: "shiny", label: "Shiny Rare", base: 30,
+        test: function (r) { return r.includes("shiny"); } },
+      { key: "radiant", label: "Radiant Rare", base: 30,
+        test: function (r) { return r.includes("radiant"); } },
+      { key: "amazing", label: "Amazing Rare", base: 40,
+        test: function (r) { return r.includes("amazing"); } },
+      { key: "legend", label: "LEGEND", base: 40,
+        test: function (r) { return r.includes("legend"); } },
+      { key: "promo", label: "Promo", base: 10,
+        test: function (r) { return r.includes("promo"); } }
+    ];
+
+    // The Pokémon TCG "types". Colorless is the TCG's version of Normal type.
+    const TYPE_LIST = [
+      { key: "colorless", label: "Colorless (Normal)", icon: "⚪", mult: 1 },
+      { key: "darkness", label: "Darkness", icon: "🌑", mult: 1.1 },
+      { key: "dragon", label: "Dragon", icon: "🐉", mult: 2 },
+      { key: "fairy", label: "Fairy", icon: "🧚", mult: 1.5 },
+      { key: "fighting", label: "Fighting", icon: "🥊", mult: 1 },
+      { key: "fire", label: "Fire", icon: "🔥", mult: 1 },
+      { key: "grass", label: "Grass", icon: "🌿", mult: 1 },
+      { key: "lightning", label: "Lightning", icon: "⚡", mult: 1 },
+      { key: "metal", label: "Metal", icon: "⚙️", mult: 1.3 },
+      { key: "psychic", label: "Psychic", icon: "🔮", mult: 1 },
+      { key: "water", label: "Water", icon: "💧", mult: 1 }
+    ];
+
+    // Card "forms": stages, and special card kinds that show in the name.
+    function stageText(card) {
+      return String(card.stage || "").toLowerCase().replace(/[\s_-]/g, "");
+    }
+    const FORMS = [
+      { key: "basic", label: "Basic Pokémon", icon: "🥚", mult: 1,
+        test: function (c) { return stageText(c).includes("basic"); } },
+      { key: "stage1", label: "Stage 1 Pokémon", icon: "🌱", mult: 1.2,
+        test: function (c) { return stageText(c).includes("stage1"); } },
+      { key: "stage2", label: "Stage 2 Pokémon", icon: "🌳", mult: 1.5,
+        test: function (c) { return stageText(c).includes("stage2"); } },
+      { key: "ex", label: "Pokémon ex", icon: "💠", mult: 2,
+        test: function (c) { return /\bex\b/.test(c.name); } },
+      { key: "exupper", label: "Pokémon-EX", icon: "🔷", mult: 2,
+        test: function (c) { return /\bEX\b/.test(c.name); } },
+      { key: "gx", label: "Pokémon-GX", icon: "🔶", mult: 2,
+        test: function (c) { return /\bGX\b/.test(c.name); } },
+      { key: "v", label: "Pokémon V", icon: "✌️", mult: 2,
+        test: function (c) { return /\bV\b/.test(c.name); } },
+      { key: "vmax", label: "Pokémon VMAX", icon: "🔺", mult: 2.5,
+        test: function (c) { return /\bVMAX\b/.test(c.name); } },
+      { key: "vstar", label: "Pokémon VSTAR", icon: "🌟", mult: 2.5,
+        test: function (c) { return /\bVSTAR\b/.test(c.name); } },
+      { key: "break", label: "BREAK Pokémon", icon: "💥", mult: 2.5,
+        test: function (c) { return /\bBREAK\b/.test(c.name); } },
+      { key: "mega", label: "Mega Pokémon", icon: "🧬", mult: 2.5,
+        test: function (c) { return /\bMega\b/.test(c.name) || /^M\s/.test(c.name); } },
+      { key: "radiant", label: "Radiant Pokémon", icon: "🔆", mult: 2.5,
+        test: function (c) { return /^Radiant\s/.test(c.name); } },
+      { key: "dark", label: "Dark Pokémon", icon: "🕶️", mult: 1.5,
+        test: function (c) { return /^Dark\s/.test(c.name); } },
+      { key: "shining", label: "Shining Pokémon", icon: "💫", mult: 3,
+        test: function (c) { return /^Shining\s/.test(c.name); } }
+    ];
+
+    // Trainer card kinds, matched by words in the trainer type.
+    const TRAINER_KINDS = [
+      { key: "item", label: "Item" },
+      { key: "supporter", label: "Supporter" },
+      { key: "stadium", label: "Stadium" },
+      { key: "tool", label: "Tool" }
+    ];
+
+    // Pokémon you can pull. Generation 1 and 2 plus some later favorites.
+    // (Names are matched against card names, ignoring accents and symbols.)
+    const LEGENDARY_NAMES = ["Articuno", "Zapdos", "Moltres", "Mewtwo", "Mew",
+      "Raikou", "Entei", "Suicune", "Lugia", "Ho-Oh", "Celebi", "Rayquaza",
+      "Dialga", "Palkia", "Giratina", "Arceus", "Darkrai", "Kyogre", "Groudon",
+      "Deoxys", "Jirachi", "Latias", "Latios", "Reshiram", "Zekrom", "Kyurem",
+      "Xerneas", "Yveltal", "Zygarde", "Necrozma", "Zacian", "Zamazenta",
+      "Eternatus", "Koraidon", "Miraidon", "Solgaleo", "Lunala"];
+    const POKEMON_NAMES = ["Bulbasaur", "Ivysaur", "Venusaur", "Charmander", "Charmeleon",
+      "Charizard", "Squirtle", "Wartortle", "Blastoise", "Caterpie", "Metapod",
+      "Butterfree", "Weedle", "Kakuna", "Beedrill", "Pidgey", "Pidgeotto", "Pidgeot",
+      "Rattata", "Raticate", "Spearow", "Fearow", "Ekans", "Arbok", "Pikachu", "Raichu",
+      "Sandshrew", "Sandslash", "Nidoran", "Nidorina", "Nidoqueen", "Nidorino", "Nidoking",
+      "Clefairy", "Clefable", "Vulpix", "Ninetales", "Jigglypuff", "Wigglytuff", "Zubat",
+      "Golbat", "Oddish", "Gloom", "Vileplume", "Paras", "Parasect", "Venonat", "Venomoth",
+      "Diglett", "Dugtrio", "Meowth", "Persian", "Psyduck", "Golduck", "Mankey", "Primeape",
+      "Growlithe", "Arcanine", "Poliwag", "Poliwhirl", "Poliwrath", "Abra", "Kadabra",
+      "Alakazam", "Machop", "Machoke", "Machamp", "Bellsprout", "Weepinbell", "Victreebel",
+      "Tentacool", "Tentacruel", "Geodude", "Graveler", "Golem", "Ponyta", "Rapidash",
+      "Slowpoke", "Slowbro", "Magnemite", "Magneton", "Farfetch'd", "Doduo", "Dodrio",
+      "Seel", "Dewgong", "Grimer", "Muk", "Shellder", "Cloyster", "Gastly", "Haunter",
+      "Gengar", "Onix", "Drowzee", "Hypno", "Krabby", "Kingler", "Voltorb", "Electrode",
+      "Exeggcute", "Exeggutor", "Cubone", "Marowak", "Hitmonlee", "Hitmonchan", "Lickitung",
+      "Koffing", "Weezing", "Rhyhorn", "Rhydon", "Chansey", "Tangela", "Kangaskhan",
+      "Horsea", "Seadra", "Goldeen", "Seaking", "Staryu", "Starmie", "Mr. Mime", "Scyther",
+      "Jynx", "Electabuzz", "Magmar", "Pinsir", "Tauros", "Magikarp", "Gyarados", "Lapras",
+      "Ditto", "Eevee", "Vaporeon", "Jolteon", "Flareon", "Porygon", "Omanyte", "Omastar",
+      "Kabuto", "Kabutops", "Aerodactyl", "Snorlax", "Articuno", "Zapdos", "Moltres",
+      "Dratini", "Dragonair", "Dragonite", "Mewtwo", "Mew",
+      "Chikorita", "Bayleef", "Meganium", "Cyndaquil", "Quilava", "Typhlosion", "Totodile",
+      "Croconaw", "Feraligatr", "Sentret", "Furret", "Hoothoot", "Noctowl", "Ledyba",
+      "Ledian", "Spinarak", "Ariados", "Crobat", "Chinchou", "Lanturn", "Pichu", "Cleffa",
+      "Igglybuff", "Togepi", "Togetic", "Natu", "Xatu", "Mareep", "Flaaffy", "Ampharos",
+      "Bellossom", "Marill", "Azumarill", "Sudowoodo", "Politoed", "Hoppip", "Skiploom",
+      "Jumpluff", "Aipom", "Sunkern", "Sunflora", "Yanma", "Wooper", "Quagsire", "Espeon",
+      "Umbreon", "Murkrow", "Slowking", "Misdreavus", "Unown", "Wobbuffet", "Girafarig",
+      "Pineco", "Forretress", "Dunsparce", "Gligar", "Steelix", "Snubbull", "Granbull",
+      "Qwilfish", "Scizor", "Shuckle", "Heracross", "Sneasel", "Teddiursa", "Ursaring",
+      "Slugma", "Magcargo", "Swinub", "Piloswine", "Corsola", "Remoraid", "Octillery",
+      "Delibird", "Mantine", "Skarmory", "Houndour", "Houndoom", "Kingdra", "Phanpy",
+      "Donphan", "Porygon2", "Stantler", "Smeargle", "Tyrogue", "Hitmontop", "Smoochum",
+      "Elekid", "Magby", "Miltank", "Blissey", "Raikou", "Entei", "Suicune", "Larvitar",
+      "Pupitar", "Tyranitar", "Lugia", "Ho-Oh", "Celebi",
+      "Lucario", "Greninja", "Gardevoir", "Rayquaza", "Garchomp", "Sylveon", "Blaziken",
+      "Mimikyu", "Zoroark", "Lycanroc", "Solgaleo", "Lunala", "Dialga", "Palkia",
+      "Giratina", "Arceus", "Darkrai", "Kyogre", "Groudon", "Deoxys", "Jirachi", "Latias",
+      "Latios", "Salamence", "Metagross", "Reshiram", "Zekrom", "Kyurem", "Xerneas",
+      "Yveltal", "Zygarde", "Necrozma", "Zacian", "Zamazenta", "Eternatus", "Koraidon",
+      "Miraidon", "Gholdengo", "Sprigatito", "Fuecoco", "Quaxly"];
+
+    // Make a name easy to compare: lowercase, no accents, no symbols.
+    function normalizeName(text) {
+      return String(text).toLowerCase().normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    }
+
+    // How many points the first card released in a given year is worth.
+    // Older years have far fewer English cards, so they're harder to find.
+    // 1996 to 1998 had no English sets at all: those are nearly impossible.
+    function yearBasePoints(year) {
+      if (year <= 1998) { return 1500; }
+      if (year === 1999) { return 150; }
+      if (year <= 2002) { return 100; }
+      if (year === 2003) { return 80; }
+      if (year === 2004) { return 70; }
+      if (year === 2005) { return 60; }
+      if (year <= 2009) { return 50; }
+      if (year <= 2014) { return 35; }
+      if (year <= 2016) { return 30; }
+      if (year <= 2019) { return 25; }
+      if (year <= 2022) { return 15; }
+      if (year <= 2025) { return 12; }
+      return 15;
+    }
+
+    // ----- Building all the achievements -----
+    const ACHIEVEMENTS = [];
+    const ACHIEVEMENT_BY_ID = {};
+
+    // Add one achievement to the list (and round its points).
+    function addAchievement(def) {
+      if (ACHIEVEMENT_BY_ID[def.id]) {
+        console.error("Duplicate achievement id: " + def.id);
+        return;
+      }
+      def.points = snapPoints(def.points);
+      ACHIEVEMENTS.push(def);
+      ACHIEVEMENT_BY_ID[def.id] = def;
+    }
+
+    // Count how many prices in a list are at least a given amount.
+    function countAtLeast(prices, amount) {
+      let count = 0;
+      for (let i = 0; i < prices.length; i++) {
+        if (prices[i] >= amount) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // Every list of numbers below is a set of milestones. Add or remove
+    // numbers to make more or fewer achievements.
+    (function buildAchievements() {
+      const CARD_COUNTS = [1, 5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750,
+        1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000];
+      const PACK_COUNTS = [1, 5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 365, 500, 750, 1000];
+      const DAY_COUNTS = [2, 5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 365, 500];
+      const STREAKS = [2, 3, 5, 7, 10, 14, 21, 30, 45, 60, 90, 100, 150, 180, 200, 250, 300, 365];
+      const PRICES = [1, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 200, 250,
+        300, 400, 500, 600, 750, 1000, 1500, 2000, 2500, 3000, 5000, 7500, 10000, 15000,
+        25000, 50000];
+      const MANY_COUNTS = [5, 10, 25, 50, 100];
+      const MANY_PRICES = [5, 10, 25, 50, 100, 250, 500, 1000];
+      const PACK_VALUES = [5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750,
+        1000, 1500, 2000, 3000, 5000, 10000];
+      const COLLECTION_VALUES = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750,
+        1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 25000, 50000, 100000];
+      const COUNTS_8 = [1, 5, 10, 25, 50, 100, 250, 500];
+      const COUNTS_6 = [1, 5, 10, 25, 50, 100];
+      const FOIL_PRICES = [5, 10, 25, 50, 100, 250, 500, 1000];
+
+      // A short way to say "N cards" or "a card".
+      function cards(n) {
+        return n === 1 ? "a card" : fmt(n) + " cards";
+      }
+
+      // ===== Collection: cards flipped =====
+      const legacyCards = { 1: ["first_pull", "First Pull"], 25: ["collector", "Collector"],
+        100: ["hoarder", "Hoarder"], 250: ["archivist", "Archivist"] };
+      CARD_COUNTS.forEach(function (n) {
+        const legacy = legacyCards[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "cards_" + n, icon: "🎴",
+          name: legacy ? legacy[1] : fmt(n) + " Cards",
+          description: n === 1 ? "Flip your first card." : "Flip " + fmt(n) + " cards.",
+          category: "Collection", group: "Cards flipped", target: n,
+          value: function (s) { return s.cards; }, points: 5 * Math.pow(n, 0.5)
+        });
+      });
+      DAY_COUNTS.forEach(function (n) {
+        addAchievement({
+          id: "days_" + n, icon: "📆", name: fmt(n) + " Pack Days",
+          description: "Open packs on " + fmt(n) + " different days.",
+          category: "Collection", group: "Days you've played", target: n,
+          value: function (s) { return s.activeDays; }, points: 10 * Math.pow(n, 0.6)
+        });
+      });
+      PACK_COUNTS.forEach(function (n) {
+        addAchievement({
+          id: "packs_" + n, icon: "📦", name: fmt(n) + (n === 1 ? " Pack" : " Packs"),
+          description: n === 1 ? "Open your first pack." : "Open " + fmt(n) + " packs.",
+          category: "Collection", group: "Packs opened", target: n,
+          value: function (s) { return s.packs; }, points: 8 * Math.pow(n, 0.55)
+        });
+      });
+
+      // ===== Habits: days in a row =====
+      const legacyStreaks = { 3: ["daily_ritual", "Daily Ritual"], 7: ["weekly_streak", "Weekly Streak"] };
+      STREAKS.forEach(function (n) {
+        const legacy = legacyStreaks[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "streak_" + n, icon: "🔥",
+          name: legacy ? legacy[1] : fmt(n) + "-Day Streak",
+          description: "Open a pack " + n + " days in a row.",
+          category: "Habits", group: "Days in a row", target: n,
+          value: function (s) { return s.streak; }, points: 12 * Math.pow(n, 0.85)
+        });
+      });
+
+      // ===== Card value (TCGplayer prices) =====
+      const legacyPrices = { 100: ["big_spender", "Big Spender"], 1000: ["four_figures", "Four Figures"] };
+      PRICES.forEach(function (x) {
+        const legacy = legacyPrices[x];
+        addAchievement({
+          id: legacy ? legacy[0] : "price_" + x, icon: "💵",
+          name: legacy ? legacy[1] : dollars(x) + " Card",
+          description: "Pull a card worth " + dollars(x) + " or more.",
+          category: "Card Value", group: "One valuable card", target: x, money: true,
+          value: function (s) { return s.maxPrice; }, points: 5 * Math.pow(x, 0.55)
+        });
+      });
+      MANY_PRICES.forEach(function (x) {
+        MANY_COUNTS.forEach(function (n) {
+          addAchievement({
+            id: "pricecount_" + x + "_" + n, icon: "💸",
+            name: n + " Cards Over " + dollars(x),
+            description: "Pull " + n + " cards that are each worth " + dollars(x) + " or more.",
+            category: "Card Value", group: "Many valuable cards", target: n,
+            value: function (s) { return countAtLeast(s.prices, x); },
+            points: 5 * Math.pow(x, 0.55) * Math.pow(n, 0.6)
+          });
+        });
+      });
+      COLLECTION_VALUES.forEach(function (x) {
+        addAchievement({
+          id: "collvalue_" + x, icon: "🏦", name: dollars(x) + " Collection",
+          description: "Own flipped cards worth " + dollars(x) + " in total.",
+          category: "Card Value", group: "Collection worth", target: x, money: true,
+          value: function (s) { return s.collectionValue; }, points: 3 * Math.pow(x, 0.55)
+        });
+      });
+
+      // ===== Rarity =====
+      const legacyRank = [
+        { id: "rare_find", icon: "🔎", name: "Rare Find", rank: 5, description: "Pull a Double Rare or better.", points: 25 },
+        { id: "ultra_pull", icon: "🚀", name: "Ultra Pull", rank: 6, description: "Pull an Ultra Rare or Illustration Rare or better.", points: 40 },
+        { id: "secret_stash", icon: "🗝️", name: "Secret Stash", rank: 7, description: "Pull a Secret, Hyper or Special Illustration Rare.", points: 75 }
+      ];
+      legacyRank.forEach(function (r) {
+        addAchievement({
+          id: r.id, icon: r.icon, name: r.name, description: r.description,
+          category: "Rarity", group: "Rarity tiers", target: 1,
+          value: function (s) { return s.maxRank >= r.rank ? 1 : 0; }, points: r.points
+        });
+      });
+      RARITY_GROUPS.forEach(function (group) {
+        COUNTS_8.forEach(function (n) {
+          addAchievement({
+            id: "rarity_" + group.key + "_" + n, icon: "⭐",
+            name: n === 1 ? group.label + " Card" : n + " " + group.label + " Cards",
+            description: "Pull " + cards(n) + " with the " + group.label + " rarity.",
+            category: "Rarity", group: group.label, target: n,
+            value: function (s) { return s.rarity[group.key] || 0; },
+            points: group.base * Math.pow(n, 0.5)
+          });
+        });
+      });
+
+      // ===== Foils and variants =====
+      const variantSets = [
+        { key: "holo", label: "Holo", icon: "🌈", base: 8, legacy: { 1: ["holo_hunter", "Holo Hunter"] } },
+        { key: "reverse", label: "Reverse Holo", icon: "🧊", base: 8, legacy: { 1: ["reverse_specialist", "Reverse Specialist"] } },
+        { key: "normal", label: "Normal", icon: "🃏", base: 4, legacy: {} }
+      ];
+      variantSets.forEach(function (v) {
+        [1, 5, 10, 25, 50, 100, 150, 200, 250, 500, 1000].forEach(function (n) {
+          const legacy = v.legacy[n];
+          addAchievement({
+            id: legacy ? legacy[0] : "variant_" + v.key + "_" + n, icon: v.icon,
+            name: legacy ? legacy[1] : n + " " + v.label + (n === 1 ? " Card" : " Cards"),
+            description: "Pull " + cards(n) + " as a " + v.label.toLowerCase() + " version.",
+            category: "Foils & Variants", group: v.label + " cards", target: n,
+            value: function (s) { return s[v.key]; }, points: v.base * Math.pow(n, 0.5)
+          });
+        });
+      });
+      [["holo", "Holo", "holoMaxPrice"], ["reverse", "Reverse Holo", "reverseMaxPrice"]].forEach(function (v) {
+        FOIL_PRICES.forEach(function (x) {
+          addAchievement({
+            id: "foilprice_" + v[0] + "_" + x, icon: "💎",
+            name: dollars(x) + " " + v[1],
+            description: "Pull a " + v[1].toLowerCase() + " card worth " + dollars(x) + " or more.",
+            category: "Foils & Variants", group: v[1] + " worth a lot", target: x, money: true,
+            value: function (s) { return s[v[2]]; }, points: 7 * Math.pow(x, 0.55)
+          });
+        });
+      });
+
+      // ===== Pokémon types =====
+      TYPE_LIST.forEach(function (type) {
+        COUNTS_8.forEach(function (n) {
+          addAchievement({
+            id: "type_" + type.key + "_" + n, icon: type.icon,
+            name: n === 1 ? type.label + " Type" : n + " " + type.label + " Cards",
+            description: "Pull " + cards(n) + " of the " + type.label + " type.",
+            category: "Types & Forms", group: type.label, target: n,
+            value: function (s) { return s.types[type.key] || 0; },
+            points: 5 * type.mult * Math.pow(n, 0.5)
+          });
+        });
+      });
+      const legacyKinds = { 5: ["type_collector", "Type Collector"] };
+      [2, 3, 5, 8, 11].forEach(function (n) {
+        const legacy = legacyKinds[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "typekinds_" + n, icon: "🎨",
+          name: legacy ? legacy[1] : n + " Different Types",
+          description: "Pull Pokémon of " + n + " different types.",
+          category: "Types & Forms", group: "Variety of types", target: n,
+          value: function (s) { return s.typeKinds; }, points: 12 * Math.pow(n, 0.9)
+        });
+      });
+      FORMS.forEach(function (form) {
+        COUNTS_6.forEach(function (n) {
+          addAchievement({
+            id: "form_" + form.key + "_" + n, icon: form.icon,
+            name: n === 1 ? form.label : n + " " + form.label + " Cards",
+            description: "Pull " + cards(n) + " that " + (form.key === "basic" || form.key.indexOf("stage") === 0
+              ? "are " + form.label.replace(" Pokémon", "") + " Pokémon." : "are " + form.label + " cards."),
+            category: "Types & Forms", group: form.label, target: n,
+            value: function (s) { return s.forms[form.key] || 0; },
+            points: 6 * form.mult * Math.pow(n, 0.5)
+          });
+        });
+      });
+
+      // ===== Card kinds: Pokémon, Trainer, Energy =====
+      const legacyKind = { trainer: { 10: ["trainers_pet", "Trainer's Pet"] }, energy: { 10: ["energized", "Energized"] } };
+      [["pokemon", "Pokémon", "🐾", 3], ["trainer", "Trainer", "🧢", 4], ["energy", "Energy", "⚡", 5]].forEach(function (k) {
+        [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500].forEach(function (n) {
+          const legacy = legacyKind[k[0]] ? legacyKind[k[0]][n] : null;
+          addAchievement({
+            id: legacy ? legacy[0] : "kind_" + k[0] + "_" + n, icon: k[2],
+            name: legacy ? legacy[1] : n + " " + k[1] + (n === 1 ? " Card" : " Cards"),
+            description: "Pull " + cards(n) + " of the " + k[1] + " kind.",
+            category: "Card Kinds", group: k[1] + " cards", target: n,
+            value: function (s) { return s.category[k[0]]; }, points: k[3] * Math.pow(n, 0.5)
+          });
+        });
+      });
+      TRAINER_KINDS.forEach(function (kind) {
+        [1, 5, 10, 25, 50, 100].forEach(function (n) {
+          addAchievement({
+            id: "trainer_" + kind.key + "_" + n, icon: "🎒",
+            name: n === 1 ? kind.label + " Card" : n + " " + kind.label + " Cards",
+            description: "Pull " + cards(n) + " that are " + kind.label + " Trainers.",
+            category: "Card Kinds", group: kind.label + " Trainers", target: n,
+            value: function (s) { return s.trainerTypes[kind.key] || 0; },
+            points: 6 * Math.pow(n, 0.5)
+          });
+        });
+      });
+      [["basic", "Basic Energy"], ["special", "Special Energy"]].forEach(function (kind) {
+        [1, 5, 10, 25, 50, 100].forEach(function (n) {
+          addAchievement({
+            id: "energy_" + kind[0] + "_" + n, icon: "🔋",
+            name: n === 1 ? kind[1] + " Card" : n + " " + kind[1] + " Cards",
+            description: "Pull " + cards(n) + " that are " + kind[1] + ".",
+            category: "Card Kinds", group: kind[1], target: n,
+            value: function (s) { return s.energyTypes[kind[0]] || 0; },
+            points: (kind[0] === "special" ? 8 : 5) * Math.pow(n, 0.5)
+          });
+        });
+      });
+
+      // ===== Years and eras (the year the card's set was released) =====
+      const lastYear = Math.max(2026, new Date().getFullYear());
+      for (let year = 1996; year <= lastYear; year++) {
+        COUNTS_6.forEach(function (n) {
+          addAchievement({
+            id: "year_" + year + "_" + n, icon: "📅",
+            name: n === 1 ? year + " Card" : n + " Cards from " + year,
+            description: "Pull " + cards(n) + " from a set released in " + year + ".",
+            category: "Years & Eras", group: String(year), target: n,
+            value: function (s) { return s.years[year] || 0; },
+            points: yearBasePoints(year) * Math.pow(n, 0.5)
+          });
+        });
+      }
+      [[1990, "1990s", 150], [2000, "2000s", 40], [2010, "2010s", 15], [2020, "2020s", 8]].forEach(function (d) {
+        [1, 10, 50, 250].forEach(function (n) {
+          addAchievement({
+            id: "decade_" + d[0] + "_" + n, icon: "⏳",
+            name: n === 1 ? "A Card from the " + d[1] : n + " Cards from the " + d[1],
+            description: "Pull " + cards(n) + " from a set released in the " + d[1] + ".",
+            category: "Years & Eras", group: "Decades", target: n,
+            value: function (s) { return s.decades[d[0]] || 0; },
+            points: d[2] * Math.pow(n, 0.5)
+          });
+        });
+      });
+      [2, 3, 5, 8, 10, 12, 15, 20, 25, 30].forEach(function (n) {
+        addAchievement({
+          id: "yearkinds_" + n, icon: "🕰️", name: n + " Different Years",
+          description: "Pull cards from sets released in " + n + " different years.",
+          category: "Years & Eras", group: "Variety of years", target: n,
+          value: function (s) { return s.distinctYears; }, points: 15 * Math.pow(n, 0.8)
+        });
+      });
+
+      // ===== Sets, names, illustrators, and stats =====
+      const legacySets = { 5: ["set_explorer", "Set Explorer"], 20: ["globetrotter", "Globetrotter"] };
+      [1, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 250].forEach(function (n) {
+        const legacy = legacySets[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "sets_" + n, icon: "🗺️",
+          name: legacy ? legacy[1] : n + (n === 1 ? " Set" : " Different Sets"),
+          description: "Pull cards from " + (n === 1 ? "a set." : n + " different sets."),
+          category: "Sets & Variety", group: "Different sets", target: n,
+          value: function (s) { return s.sets; }, points: 5 * Math.pow(n, 0.7)
+        });
+      });
+      [5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 750, 1000].forEach(function (n) {
+        addAchievement({
+          id: "names_" + n, icon: "📛", name: n + " Different Cards",
+          description: "Pull " + n + " cards with different names.",
+          category: "Sets & Variety", group: "Different card names", target: n,
+          value: function (s) { return s.names; }, points: 4 * Math.pow(n, 0.6)
+        });
+      });
+      [1, 5, 10, 25, 50, 100, 150, 200, 250, 300, 400, 500].forEach(function (n) {
+        addAchievement({
+          id: "artists_" + n, icon: "🎨", name: n + (n === 1 ? " Artist" : " Different Artists"),
+          description: "Pull cards illustrated by " + (n === 1 ? "an artist." : n + " different artists."),
+          category: "Sets & Variety", group: "Different artists", target: n,
+          value: function (s) { return s.illustrators; }, points: 5 * Math.pow(n, 0.6)
+        });
+      });
+      const legacyDupes = { 2: ["deja_vu", "Déjà Vu"] };
+      [2, 3, 4, 5, 6, 8, 10, 15, 20, 25, 50].forEach(function (n) {
+        const legacy = legacyDupes[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "copies_" + n, icon: "🔁",
+          name: legacy ? legacy[1] : n + " Copies",
+          description: "Pull the same card " + n + " times.",
+          category: "Sets & Variety", group: "Duplicates", target: n,
+          value: function (s) { return s.maxCopies; }, points: 8 * Math.pow(n, 1.1)
+        });
+      });
+      [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
+        220, 250, 280, 300, 330, 340].forEach(function (hp) {
+        addAchievement({
+          id: "hp_" + hp, icon: "❤️", name: hp + " HP",
+          description: "Pull a Pokémon with " + hp + " HP or more.",
+          category: "Card Stats", group: "Hit points", target: hp,
+          value: function (s) { return s.maxHp; }, points: 5 + Math.pow(hp / 20, 1.4)
+        });
+      });
+      [1, 2, 3, 4, 5].forEach(function (n) {
+        addAchievement({
+          id: "retreat_" + n, icon: "🏃", name: "Retreat Cost " + n,
+          description: "Pull a Pokémon with a retreat cost of " + n + " or more.",
+          category: "Card Stats", group: "Retreat cost", target: n,
+          value: function (s) { return s.maxRetreat; }, points: 5 * Math.pow(2, n - 1)
+        });
+      });
+
+      // ===== Pokémon you've caught =====
+      const seenNames = {};
+      POKEMON_NAMES.forEach(function (name) {
+        const normalized = normalizeName(name);
+        if (seenNames[normalized]) {
+          return;   // a few names are listed twice
+        }
+        seenNames[normalized] = true;
+        const legendary = LEGENDARY_NAMES.indexOf(name) !== -1;
+        addAchievement({
+          id: "mon_" + normalized.replace(/ /g, "_"), icon: legendary ? "👑" : "🐾",
+          name: name, description: "Pull a " + name + " card.",
+          category: "Pokémon", group: legendary ? "Legendary & Mythical" : "Pokémon", target: 1,
+          value: function (s) { return s.hasName(normalized) ? 1 : 0; },
+          points: legendary ? 50 : 25
+        });
+      });
+
+      // ===== Pack feats (whole packs where every card has been flipped) =====
+      const legacyFoil = { 4: ["foil_frenzy", "Foil Frenzy"] };
+      [1, 2, 3, 4, 5, 6, 7].forEach(function (n) {
+        const legacy = legacyFoil[n];
+        addAchievement({
+          id: legacy ? legacy[0] : "foilpack_" + n, icon: "✨",
+          name: legacy ? legacy[1] : n + " Foil" + (n === 1 ? "" : "s") + " in a Pack",
+          description: "Flip a whole pack with " + n + " or more holo or reverse holo cards.",
+          category: "Pack Feats", group: "Foils in one pack", target: n,
+          value: function (s) { return s.bestFoilPack; }, points: 8 * Math.pow(n, 1.6)
+        });
+      });
+      const legacyPack = { 250: ["jackpot_pack", "Jackpot Pack"] };
+      PACK_VALUES.forEach(function (x) {
+        const legacy = legacyPack[x];
+        addAchievement({
+          id: legacy ? legacy[0] : "packvalue_" + x, icon: "🎰",
+          name: legacy ? legacy[1] : dollars(x) + " Pack",
+          description: "Flip a whole pack worth " + dollars(x) + " or more in total.",
+          category: "Pack Feats", group: "Pack value", target: x, money: true,
+          value: function (s) { return s.bestPackValue; }, points: 4 * Math.pow(x, 0.55)
+        });
+      });
+      [1, 2, 5, 10, 25, 50].forEach(function (x) {
+        addAchievement({
+          id: "premium_" + x, icon: "👑", name: "All " + dollars(x) + "+",
+          description: "Flip a pack where all 7 cards are worth " + dollars(x) + " or more.",
+          category: "Pack Feats", group: "Every card valuable", target: x, money: true,
+          value: function (s) { return s.bestPackMinPrice; }, points: 30 * Math.pow(x, 0.5)
+        });
+      });
+      [3, 4, 5, 6, 7].forEach(function (n) {
+        addAchievement({
+          id: "packtypes_" + n, icon: "🌈", name: n + " Types in a Pack",
+          description: "Flip a pack with " + n + " different Pokémon types.",
+          category: "Pack Feats", group: "Variety in one pack", target: n,
+          value: function (s) { return s.bestPackTypes; }, points: 10 * Math.pow(n, 1.4)
+        });
+      });
+      addAchievement({
+        id: "packsets_7", icon: "🧩", name: "Seven Sets",
+        description: "Flip a pack where all 7 cards are from different sets.",
+        category: "Pack Feats", group: "Variety in one pack", target: 7,
+        value: function (s) { return s.bestPackSets; }, points: 30
+      });
+    })();
+
+
+    // ----- The strange and silly achievements -----
+    // These have no real purpose. They count oddities like the letters in a
+    // card's name, the cents in its price, or the day you opened a pack.
+    const SUBSTRINGS = ["chu", "saur", "zard", "mew", "eevee", "dragon", "ghost", "fire",
+      "water", "leaf", "stone", "king", "queen", "mega", "mime", "bird", "fish",
+      "bear", "snake", "star", "dark", "light", "rock", "thunder", "electric",
+      "poison", "steel", "gold", "shiny", "radiant", "team", "rocket", "'s ",
+      "professor", "energy", "ball", "potion", "stadium", "sun", "moon", "fox", "bug"];
+    const MEME_PRICES = [[1, "One Cent"], [5, "Nickel"], [10, "Dime"], [25, "Quarter"],
+      [50, "Fifty Cents"], [69, "Nice"], [99, "A Penny Short"], [100, "Exactly One Dollar"],
+      [111, "Angel Price"], [123, "One, Two, Three"], [137, "Fine Structure"], [200, "Two Bucks"],
+      [271, "Euler's Price"], [314, "Pi Price"], [420, "Blaze Price"], [500, "Five Bucks Flat"],
+      [666, "Price of the Beast"], [777, "Lucky Sevens"], [999, "Nine Nine Nine"],
+      [1000, "Perfect Ten"], [1111, "Make a Wish"], [1234, "Counting Up"], [1337, "Leet Price"],
+      [2000, "Twenty Even"], [4200, "Forty-Two Hundred"], [4242, "Double Answer"],
+      [5000, "Fifty Even"], [6969, "Very Nice"], [7777, "Four Sevens"], [10000, "One Hundred Even"],
+      [13337, "Leetest"], [25000, "Two Fifty"], [42069, "The Meme"], [50000, "Five Hundred Even"],
+      [66600, "Six Six Six Hundred"], [77777, "Five Sevens"], [100000, "One Thousand Even"]];
+    const HOLIDAYS = { "01-01": "New Year's Day", "02-14": "Valentine's Day", "02-29": "Leap Day",
+      "03-14": "Pi Day", "04-01": "April Fools' Day", "04-20": "Fourth Twenty", "05-04": "May the Fourth",
+      "06-09": "Sixty-Nine Day", "07-04": "Fireworks Day", "07-07": "Lucky Sevens Day",
+      "09-19": "Talk Like a Pirate Day", "10-31": "Halloween", "11-11": "Eleven Eleven",
+      "12-24": "Christmas Eve", "12-25": "Christmas Day", "12-31": "New Year's Eve" };
+    const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July",
+      "August", "September", "October", "November", "December"];
+    const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const LETTER_POINTS = { q: 60, z: 50, x: 50, j: 50, w: 30, v: 30, f: 20, b: 15, k: 15,
+      y: 15, g: 12, h: 10, p: 10, d: 10, m: 8, u: 8, c: 8, t: 6 };
+
+    // The number as an ordinal, like 1st, 2nd, 3rd.
+    function ordinal(n) {
+      const rest = n % 100;
+      if (rest >= 11 && rest <= 13) { return n + "th"; }
+      return n + (["th", "st", "nd", "rd"][n % 10] || "th");
+    }
+    function letterBase(letter) {
+      return LETTER_POINTS[letter] || 5;
+    }
+
+    (function buildStrangeAchievements() {
+      function cards(n) {
+        return n === 1 ? "a card" : fmt(n) + " cards";
+      }
+      function add(def) {
+        def.category = "Strange & Silly";
+        addAchievement(def);
+      }
+
+      // ===== Calendar days =====
+      const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      for (let m = 1; m <= 12; m++) {
+        for (let d = 1; d <= daysInMonth[m - 1]; d++) {
+          const key = String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+          const holiday = HOLIDAYS[key];
+          add({
+            id: "date_" + key, icon: holiday ? "🎉" : "🗓️",
+            name: holiday ? holiday + " Pack" : MONTH_NAMES[m - 1] + " " + d + " Pack",
+            description: "Open a pack on " + MONTH_NAMES[m - 1] + " " + d + ".",
+            group: "Opening on a date", target: 1,
+            value: function (s) { return s.dates[key] ? 1 : 0; },
+            points: key === "02-29" ? 500 : (holiday ? 75 : 40)
+          });
+        }
+      }
+      DAY_NAMES.forEach(function (day, w) {
+        [1, 5, 10, 25, 50].forEach(function (n) {
+          add({
+            id: "weekday_" + w + "_" + n, icon: "📅",
+            name: n === 1 ? day + " Person" : n + " " + day + "s",
+            description: "Open packs on " + (n === 1 ? "a " + day : n + " different " + day + "s") + ".",
+            group: "Days of the week", target: n,
+            value: function (s) { return s.weekdays[w] || 0; }, points: 10 * Math.pow(n, 0.6)
+          });
+        });
+      });
+      MONTH_NAMES.forEach(function (month, m) {
+        [1, 5, 10, 25].forEach(function (n) {
+          add({
+            id: "month_" + (m + 1) + "_" + n, icon: "🌙",
+            name: n === 1 ? month + " Opener" : n + " Days in " + month,
+            description: "Open packs on " + n + " different days in " + month + ".",
+            group: "Months", target: n,
+            value: function (s) { return s.months[m + 1] || 0; }, points: 12 * Math.pow(n, 0.6)
+          });
+        });
+      });
+      for (let d = 1; d <= 31; d++) {
+        add({
+          id: "dom_" + d, icon: "🔢", name: "The " + ordinal(d),
+          description: "Open a pack on the " + ordinal(d) + " of any month.",
+          group: "Day of the month", target: 1,
+          value: function (s) { return s.doms[d] ? 1 : 0; }, points: 15
+        });
+      }
+      add({
+        id: "friday13", icon: "🔪", name: "Friday the 13th",
+        description: "Open a pack on a Friday the 13th.",
+        group: "Unlucky days", target: 1,
+        value: function (s) { return s.friday13 ? 1 : 0; }, points: 150
+      });
+
+      // ===== Card numbers =====
+      for (let n = 1; n <= 200; n++) {
+        add({
+          id: "cardno_" + n, icon: "#️⃣", name: "Card Number " + n,
+          description: "Pull a card numbered " + n + " in its set.",
+          group: "Card numbers", target: 1,
+          value: function (s) { return s.numbers[n] || 0; }, points: 8 + n * 0.3
+        });
+      }
+
+      // ===== Prices =====
+      for (let c = 0; c < 100; c++) {
+        const label = "." + String(c).padStart(2, "0");
+        add({
+          id: "cents_" + c, icon: "🪙", name: "Price Ending " + label,
+          description: "Pull a card with a price that ends in " + label + ", like $4" + label + ".",
+          group: "Cents", target: 1,
+          value: function (s) { return s.cents[c] || 0; }, points: c % 5 === 0 ? 8 : 12
+        });
+      }
+      for (let d = 0; d < 50; d++) {
+        add({
+          id: "dollarbin_" + d, icon: "🗑️",
+          name: d === 0 ? "Under a Dollar" : "The $" + d + " Bin",
+          description: d === 0 ? "Pull a card worth less than $1."
+            : "Pull a card priced from $" + d + ".00 to $" + d + ".99.",
+          group: "Dollar bins", target: 1,
+          value: function (s) { return s.dollarBins[d] || 0; }, points: 5 + 5 * Math.pow(d + 1, 0.6)
+        });
+      }
+      MEME_PRICES.forEach(function (meme) {
+        const cents = meme[0];
+        add({
+          id: "exactprice_" + cents, icon: "🎯", name: meme[1],
+          description: "Pull a card priced at exactly " + formatMoney(cents / 100, "USD") + ".",
+          group: "Exact prices", target: 1,
+          value: function (s) { return s.exactPrices[cents] || 0; },
+          points: 25 + 20 * Math.pow(cents / 100, 0.3)
+        });
+      });
+      for (let hp = 10; hp <= 400; hp += 10) {
+        add({
+          id: "hpexact_" + hp, icon: "💗", name: "Exactly " + hp + " HP",
+          description: "Pull a Pokémon with exactly " + hp + " HP.",
+          group: "Exact HP", target: 1,
+          value: function (s) { return s.hpExact[hp] || 0; }, points: 6 + 2 * Math.pow(hp / 10, 0.9)
+        });
+      }
+
+      // ===== Letters and names =====
+      "abcdefghijklmnopqrstuvwxyz".split("").forEach(function (L) {
+        const U = L.toUpperCase();
+        const base = letterBase(L);
+        [[1, "Spotted"], [5, "Collector"], [25, "Hoarder"], [100, "Obsessed"]].forEach(function (tier) {
+          add({
+            id: "letter_" + L + "_" + tier[0], icon: "🔤", name: tier[1] + ": Letter " + U,
+            description: "Pull " + cards(tier[0]) + " with a " + U + " in the name.",
+            group: "Letter " + U, target: tier[0],
+            value: function (s) { return s.letters[L] || 0; }, points: base * Math.pow(tier[0], 0.5)
+          });
+        });
+        [1, 10, 50].forEach(function (n) {
+          add({
+            id: "first_" + L + "_" + n, icon: "🅰️",
+            name: n === 1 ? "Starts with " + U : n + " Names Starting with " + U,
+            description: "Pull " + cards(n) + " whose name starts with " + U + ".",
+            group: "Starts with " + U, target: n,
+            value: function (s) { return s.firstLetters[L] || 0; }, points: base * Math.pow(n, 0.5)
+          });
+        });
+        [1, 10].forEach(function (n) {
+          add({
+            id: "last_" + L + "_" + n, icon: "🔚",
+            name: n === 1 ? "Ends with " + U : n + " Names Ending with " + U,
+            description: "Pull " + cards(n) + " whose name ends with " + U + ".",
+            group: "Ends with " + U, target: n,
+            value: function (s) { return s.lastLetters[L] || 0; }, points: base * Math.pow(n, 0.5)
+          });
+        });
+        [1, 5].forEach(function (n) {
+          add({
+            id: "artist_" + L + "_" + n, icon: "🖌️",
+            name: n === 1 ? "Artist Starting with " + U : n + " Artists Starting with " + U,
+            description: "Pull cards by " + (n === 1 ? "an illustrator" : n + " different illustrators") +
+              " whose name starts with " + U + ".",
+            group: "Artist initial " + U, target: n,
+            value: function (s) { return s.artistInitials[L] || 0; }, points: base * 1.5 * Math.pow(n, 0.7)
+          });
+          add({
+            id: "setinitial_" + L + "_" + n, icon: "📚",
+            name: n === 1 ? "Set Starting with " + U : n + " Sets Starting with " + U,
+            description: "Pull cards from " + (n === 1 ? "a set" : n + " different sets") +
+              " whose name starts with " + U + ".",
+            group: "Set initial " + U, target: n,
+            value: function (s) { return s.setInitials[L] || 0; }, points: base * 1.5 * Math.pow(n, 0.7)
+          });
+        });
+      });
+      for (let len = 3; len <= 24; len++) {
+        [1, 10].forEach(function (n) {
+          const rarity = Math.abs(len - 9) + 1;
+          add({
+            id: "namelen_" + len + "_" + n, icon: "📏",
+            name: n === 1 ? len + "-Character Name" : n + " Names of " + len + " Characters",
+            description: "Pull " + cards(n) + " whose name is exactly " + len + " characters long (spaces count).",
+            group: "Name length", target: n,
+            value: function (s) { return s.nameLengths[len] || 0; },
+            points: 5 * Math.pow(rarity, 0.7) * Math.pow(n, 0.5)
+          });
+        });
+      }
+      for (let words = 1; words <= 6; words++) {
+        [1, 10, 50].forEach(function (n) {
+          add({
+            id: "words_" + words + "_" + n, icon: "💬",
+            name: n === 1 ? words + "-Word Name" : n + " Names of " + words + (words === 1 ? " Word" : " Words"),
+            description: "Pull " + cards(n) + " whose name is exactly " + words + (words === 1 ? " word." : " words."),
+            group: "Words in a name", target: n,
+            value: function (s) { return s.nameWords[words] || 0; },
+            points: 6 * Math.pow(words, 1.1) * Math.pow(n, 0.5)
+          });
+        });
+      }
+      [["doubleLetter", "Double Letters", "have a doubled letter in the name, like Bellossom", 1],
+       ["allVowels", "All Five Vowels", "have all five vowels (a, e, i, o, u) in the name", 6],
+       ["apostrophe", "Apostrophe Name", "have an apostrophe in the name", 1.5],
+       ["hyphen", "Hyphenated", "have a hyphen in the name", 2],
+       ["period", "Full Stop", "have a period in the name", 3],
+       ["digit", "Numbers in the Name", "have a number in the name", 3],
+       ["accent", "Fancy Accent", "have an accented letter in the name, like é", 1.2],
+       ["ampersand", "And Also", "have an ampersand (&) in the name", 5]].forEach(function (f) {
+        [1, 10, 50].forEach(function (n) {
+          add({
+            id: "namefeat_" + f[0] + "_" + n, icon: "🧐",
+            name: n === 1 ? f[1] : n + " × " + f[1],
+            description: "Pull " + cards(n) + " that " + f[2] + ".",
+            group: f[1], target: n,
+            value: function (s) { return s.nameFeatures[f[0]] || 0; }, points: 12 * f[3] * Math.pow(n, 0.5)
+          });
+        });
+      });
+      SUBSTRINGS.forEach(function (sub, i) {
+        [1, 5, 25].forEach(function (n) {
+          add({
+            id: "sub_" + i + "_" + n, icon: "🧩",
+            name: n === 1 ? "Name Contains \"" + sub.trim() + "\"" : n + " × \"" + sub.trim() + "\"",
+            description: "Pull " + cards(n) + " with \"" + sub.trim() + "\" in the name.",
+            group: "Names containing \"" + sub.trim() + "\"", target: n,
+            value: function (s) { return s.substrings[i] || 0; }, points: 10 * Math.pow(n, 0.5)
+          });
+        });
+      });
+      "ABCDEFGHIJ".split("").forEach(function (L) {
+        [1, 10].forEach(function (n) {
+          add({
+            id: "regmark_" + L + "_" + n, icon: "🏷️",
+            name: n === 1 ? "Regulation Mark " + L : n + " Cards Marked " + L,
+            description: "Pull " + cards(n) + " with regulation mark " + L + ".",
+            group: "Regulation mark " + L, target: n,
+            value: function (s) { return s.regMarks[L] || 0; }, points: 12 * Math.pow(n, 0.5)
+          });
+        });
+      });
+
+      // ===== Silly milestones =====
+      [69, 111, 123, 321, 420, 666, 777, 888, 999, 1234, 1337, 2024, 2026, 4242, 6969, 8008, 9001, 12345].forEach(function (n) {
+        add({
+          id: "silly_cards_" + n, icon: "🤪", name: "Card Number " + fmt(n) + " (Silly)",
+          description: "Flip " + fmt(n) + " cards in total.",
+          group: "Silly card totals", target: n,
+          value: function (s) { return s.cards; }, points: 6 * Math.pow(n, 0.5)
+        });
+      });
+      [13, 42, 69, 111, 123, 314, 420, 666, 777, 1337].forEach(function (n) {
+        add({
+          id: "silly_packs_" + n, icon: "🎁", name: fmt(n) + " Packs (Silly)",
+          description: "Open " + fmt(n) + " packs in total.",
+          group: "Silly pack totals", target: n,
+          value: function (s) { return s.packs; }, points: 9 * Math.pow(n, 0.55)
+        });
+      });
+      [69, 420, 666, 777, 1337, 4242, 6969, 31415].forEach(function (n) {
+        add({
+          id: "silly_value_" + n, icon: "💰", name: dollars(n) + " Collection (Silly)",
+          description: "Own flipped cards worth " + dollars(n) + " in total.",
+          group: "Silly collection values", target: n, money: true,
+          value: function (s) { return s.collectionValue; }, points: 3 * Math.pow(n, 0.55)
+        });
+      });
+      [13, 42, 69].forEach(function (n) {
+        add({
+          id: "silly_streak_" + n, icon: "🧨", name: n + "-Day Streak (Silly)",
+          description: "Open a pack " + n + " days in a row.",
+          group: "Silly streaks", target: n,
+          value: function (s) { return s.streak; }, points: 12 * Math.pow(n, 0.85)
+        });
+      });
+
+      // ===== Silly pack feats (a whole pack, all flipped) =====
+      [["packAlphaAsc", "Alphabet Soup", "Flip a pack whose cards came out in alphabetical order.", 400],
+       ["packAlphaDesc", "Backwards Alphabet", "Flip a pack whose cards came out in reverse alphabetical order.", 400],
+       ["packPriceAsc", "Price Ladder", "Flip a pack whose prices rise from the first card to the last.", 300],
+       ["packPriceDesc", "Price Slide", "Flip a pack whose prices fall from the first card to the last.", 300],
+       ["packRound", "Perfectly Round", "Flip a pack worth exactly a whole number of dollars.", 200]].forEach(function (f) {
+        add({
+          id: f[0], icon: "🎭", name: f[1], description: f[2], group: "Pack oddities", target: 1,
+          value: function (s) { return s[f[0]] ? 1 : 0; }, points: f[3]
+        });
+      });
+      for (let c = 0; c < 100; c++) {
+        const label = "." + String(c).padStart(2, "0");
+        add({
+          id: "packcents_" + c, icon: "🧮", name: "Pack Ending " + label,
+          description: "Flip a pack whose total value ends in " + label + ".",
+          group: "Pack value cents", target: 1,
+          value: function (s) { return s.packCents[c] ? 1 : 0; }, points: c === 0 ? 150 : 40
+        });
+      }
+      [[2, 12], [3, 40], [4, 100], [5, 250], [6, 600], [7, 1500]].forEach(function (row) {
+        const n = row[0];
+        [["packSameFirst", "same first letter", "Alike at the Start"],
+         ["packSameSet", "same set", "Set Sweep"],
+         ["packSameType", "same type", "Type Match"],
+         ["packSameRarity", "same rarity", "Rarity Match"],
+         ["packSameName", "same name", "Twin Names"]].forEach(function (f) {
+          add({
+            id: f[0] + "_" + n, icon: "👯", name: f[2] + " × " + n,
+            description: "Flip a pack with " + n + " cards sharing the " + f[1] + ".",
+            group: f[2], target: n,
+            value: function (s) { return s[f[0]]; }, points: row[1]
+          });
+        });
+        [["Pokémon", "pokemon"], ["Trainer", "trainer"], ["Energy", "energy"]].forEach(function (k) {
+          add({
+            id: "packcat_" + k[1] + "_" + n, icon: "🎲", name: n + " " + (k[1] === "pokemon" ? k[0] : k[0] + "s") + " in a Pack",
+            description: "Flip a pack with " + n + " " + k[0] + " cards.",
+            group: k[0] + "s in one pack", target: n,
+            value: function (s) { return s.packCategory[k[1]] || 0; }, points: row[1] * (k[1] === "pokemon" ? 0.5 : 1.2)
+          });
+        });
+      });
+      [3, 4, 5, 6, 7].forEach(function (n) {
+        add({
+          id: "packfirst_" + n, icon: "🔡", name: n + " Different First Letters",
+          description: "Flip a pack where " + n + " cards start with different letters.",
+          group: "Letters in one pack", target: n,
+          value: function (s) { return s.packFirstLetters; }, points: 6 * Math.pow(n, 1.5)
+        });
+      });
+      [300, 500, 750, 1000, 1500, 2000].forEach(function (n) {
+        add({
+          id: "packhp_" + n, icon: "🩹", name: fmt(n) + " HP in a Pack",
+          description: "Flip a pack whose Pokémon add up to " + fmt(n) + " or more HP.",
+          group: "Total HP in a pack", target: n,
+          value: function (s) { return s.packHp; }, points: 8 * Math.pow(n / 100, 1.1)
+        });
+      });
+
+      // ===== Combinations (type and foil) =====
+      TYPE_LIST.forEach(function (type) {
+        [["holo", "Holo"], ["reverse", "Reverse Holo"], ["normal", "Normal"]].forEach(function (v) {
+          [1, 5, 25].forEach(function (n) {
+            add({
+              id: "typevar_" + type.key + "_" + v[0] + "_" + n, icon: type.icon,
+              name: n + " " + v[1] + " " + type.label.split(" ")[0] + (n === 1 ? "" : " Cards"),
+              description: "Pull " + cards(n) + " of the " + type.label + " type as a " + v[1].toLowerCase() + " version.",
+              group: v[1] + " " + type.label, target: n,
+              value: function (s) { return s.typeVariant[type.key + "|" + v[0]] || 0; },
+              points: 8 * type.mult * (v[0] === "normal" ? 0.6 : 1) * Math.pow(n, 0.5)
+            });
+          });
+        });
+      });
+    })();
+
+    // ----- Release years of sets -----
+    // A card doesn't say when it was released, but its set does. We look each
+    // set up once and remember the year in the browser.
+    const SETS_URL = "https://api.tcgdex.net/v2/en/sets";
+    const SET_YEARS_KEY = "setYears";
+    let setYears = {};   // { setId: year }
+
+    function loadSetYears() {
+      try {
+        const text = localStorage.getItem(SET_YEARS_KEY);
+        if (text) {
+          const saved = JSON.parse(text);
+          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+            return saved;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return {};
+    }
+
+    function saveSetYears() {
+      try {
+        localStorage.setItem(SET_YEARS_KEY, JSON.stringify(setYears));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // Look up the release year of any sets we don't know yet.
+    // Returns true if we learned something new. A failed lookup is
+    // ignored, and we simply try again next time.
+    async function fetchMissingSetYears(setIds) {
+      const missing = [];
+      setIds.forEach(function (id) {
+        if (id && !setYears[id] && missing.indexOf(id) === -1) {
+          missing.push(id);
+        }
+      });
+      if (missing.length === 0) {
+        return false;
+      }
+
+      let learned = false;
+      await Promise.all(missing.map(async function (id) {
+        try {
+          const set = await fetchFromApi(SETS_URL + "/" + id);
+          const year = parseInt(String(set.releaseDate).slice(0, 4), 10);
+          if (year >= 1990 && year <= 2100) {
+            setYears[id] = year;
+            learned = true;
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }));
+
+      if (learned) {
+        saveSetYears();
+      }
+      return learned;
+    }
+
+    // When the page loads, fill in years for sets already in the collection.
+    async function backfillSetYears() {
+      const ids = collection.map(function (item) {
+        return item.card && item.card.set ? item.card.set.id : null;
+      });
+      const learned = await fetchMissingSetYears(ids);
+      if (learned) {
+        renderCollection();       // total points can change once years are known
+        updatePackSummary(0);
+      }
+    }
+
+    // The release year of a collection item, or null if we don't know it.
+    function getItemYear(item) {
+      const setId = item.card && item.card.set ? item.card.set.id : null;
+      return setId && setYears[setId] ? setYears[setId] : null;
+    }
+
+    // ----- Counting what you own -----
+
+    // Turn a date like "2026-11-09" into a day number, so we can tell
+    // whether two dates are in a row. Returns null if the date looks wrong.
+    function dayNumber(dateText) {
+      if (typeof dateText !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+        return null;
+      }
+      const parts = dateText.split("-").map(Number);
+      return Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000;
+    }
+
+    // Look through your collection and count everything achievements care
+    // about. Only cards you've flipped count, except for packs and days.
+    function computeStats(items) {
+      const stats = {
+        cards: 0, packs: 0, activeDays: 0, streak: 0,
+        holo: 0, reverse: 0, normal: 0,
+        category: { pokemon: 0, trainer: 0, energy: 0 },
+        trainerTypes: {}, energyTypes: {},
+        types: {}, typeKinds: 0, forms: {}, rarity: {}, maxRank: 0,
+        years: {}, decades: {}, distinctYears: 0,
+        prices: [], maxPrice: 0, holoMaxPrice: 0, reverseMaxPrice: 0, collectionValue: 0,
+        maxHp: 0, maxRetreat: 0, maxCopies: 0,
+        sets: 0, names: 0, illustrators: 0,
+        bestFoilPack: 0, bestPackValue: 0, bestPackMinPrice: 0, bestPackTypes: 0, bestPackSets: 0,
+        hasName: null,
+        // Counters for the strange and silly achievements
+        dates: {}, weekdays: {}, months: {}, doms: {}, friday13: false,
+        numbers: {}, cents: {}, dollarBins: {}, exactPrices: {}, hpExact: {},
+        letters: {}, firstLetters: {}, lastLetters: {}, artistInitials: {}, setInitials: {},
+        nameLengths: {}, nameWords: {}, nameFeatures: {}, substrings: {}, regMarks: {},
+        typeVariant: {},
+        packAlphaAsc: false, packAlphaDesc: false, packPriceAsc: false, packPriceDesc: false,
+        packRound: false, packCents: {}, packSameFirst: 0, packSameSet: 0, packSameType: 0,
+        packSameRarity: 0, packSameName: 0, packCategory: {}, packFirstLetters: 0, packHp: 0
+      };
+      const artistInitialSets = {};   // letter -> the artists we've seen
+      const setInitialSets = {};      // letter -> the sets we've seen
+      function bump(object, key) {
+        object[key] = (object[key] || 0) + 1;
+      }
+      const setNames = new Set();
+      const cardNames = new Set();
+      const paddedNames = new Set();   // card names, ready for matching Pokémon
+      const artists = new Set();
+      const yearSet = new Set();
+      const typeSet = new Set();
+      const copies = {};               // how many of each card you have
+      const days = new Set();          // the days you opened packs
+      const packs = {};                // your cards, grouped by pack
+
+      items.forEach(function (item) {
+        days.add(item.packDate);
+        // Cards saved before packs had ids are grouped by day instead.
+        const packKey = item.packId || item.packDate;
+        if (!packs[packKey]) {
+          packs[packKey] = [];
+        }
+        packs[packKey].push(item);
+
+        if (!item.revealed) {
+          return;   // skip cards you haven't flipped yet
+        }
+        const card = item.card;
+        const price = getItemPrice(item);
+        stats.cards++;
+        if (item.variant === "holo") { stats.holo++; }
+        if (item.variant === "reverse") { stats.reverse++; }
+        if (item.variant === "normal") { stats.normal++; }
+
+        // Price facts
+        if (price !== null) {
+          stats.prices.push(price);
+          stats.collectionValue += price;
+          stats.maxPrice = Math.max(stats.maxPrice, price);
+          if (item.variant === "holo") {
+            stats.holoMaxPrice = Math.max(stats.holoMaxPrice, price);
+          }
+          if (item.variant === "reverse") {
+            stats.reverseMaxPrice = Math.max(stats.reverseMaxPrice, price);
+          }
+        }
+
+        // Kind of card
+        const category = String(card.category || "").toLowerCase();
+        if (stats.category[category] !== undefined) {
+          stats.category[category]++;
+        }
+        if (category === "trainer") {
+          const trainerText = String(card.trainerType || "").toLowerCase();
+          TRAINER_KINDS.forEach(function (kind) {
+            if (trainerText.includes(kind.key)) {
+              stats.trainerTypes[kind.key] = (stats.trainerTypes[kind.key] || 0) + 1;
+            }
+          });
+        }
+        if (category === "energy") {
+          const energyText = String(card.energyType || "").toLowerCase();
+          if (energyText) {
+            stats.energyTypes[energyText] = (stats.energyTypes[energyText] || 0) + 1;
+          }
+        }
+
+        // Rarity
+        const rarityText = String(card.rarity || "").toLowerCase();
+        stats.maxRank = Math.max(stats.maxRank, getRarityRank(card.rarity));
+        RARITY_GROUPS.forEach(function (group) {
+          if (rarityText && group.test(rarityText)) {
+            stats.rarity[group.key] = (stats.rarity[group.key] || 0) + 1;
+          }
+        });
+
+        // Types and forms
+        if (Array.isArray(card.types)) {
+          card.types.forEach(function (type) {
+            const key = String(type).toLowerCase();
+            stats.types[key] = (stats.types[key] || 0) + 1;
+            typeSet.add(key);
+          });
+        }
+        FORMS.forEach(function (form) {
+          if (form.test(card)) {
+            stats.forms[form.key] = (stats.forms[form.key] || 0) + 1;
+          }
+        });
+
+        // Numbers on the card
+        const hp = Number(card.hp);
+        if (hp > 0) {
+          stats.maxHp = Math.max(stats.maxHp, hp);
+        }
+        const retreat = Number(card.retreat);
+        if (retreat > 0) {
+          stats.maxRetreat = Math.max(stats.maxRetreat, retreat);
+        }
+
+        // Year
+        const year = getItemYear(item);
+        if (year) {
+          stats.years[year] = (stats.years[year] || 0) + 1;
+          const decade = Math.floor(year / 10) * 10;
+          stats.decades[decade] = (stats.decades[decade] || 0) + 1;
+          yearSet.add(year);
+        }
+
+        // The strange stuff: oddities in names, numbers and prices
+        const rawName = String(card.name || "");
+        const plain = normalizeName(rawName);          // lowercase letters and digits
+        const lettersOnly = plain.replace(/[^a-z]/g, "");
+        const seenLetters = new Set(lettersOnly.split(""));
+        seenLetters.forEach(function (letter) { bump(stats.letters, letter); });
+        if (lettersOnly) {
+          bump(stats.firstLetters, lettersOnly[0]);
+          bump(stats.lastLetters, lettersOnly[lettersOnly.length - 1]);
+        }
+        bump(stats.nameLengths, rawName.length);
+        bump(stats.nameWords, plain.split(" ").filter(Boolean).length);
+        if (/(.)\1/.test(lettersOnly)) { bump(stats.nameFeatures, "doubleLetter"); }
+        if (["a", "e", "i", "o", "u"].every(function (v) { return seenLetters.has(v); })) { bump(stats.nameFeatures, "allVowels"); }
+        if (/['’]/.test(rawName)) { bump(stats.nameFeatures, "apostrophe"); }
+        if (rawName.indexOf("-") !== -1) { bump(stats.nameFeatures, "hyphen"); }
+        if (rawName.indexOf(".") !== -1) { bump(stats.nameFeatures, "period"); }
+        if (/[0-9]/.test(rawName)) { bump(stats.nameFeatures, "digit"); }
+        if (/[^\u0000-\u007f]/.test(rawName)) { bump(stats.nameFeatures, "accent"); }
+        if (rawName.indexOf("&") !== -1) { bump(stats.nameFeatures, "ampersand"); }
+        const lowerName = rawName.toLowerCase();
+        SUBSTRINGS.forEach(function (sub, i) {
+          if (lowerName.indexOf(sub) !== -1) { bump(stats.substrings, i); }
+        });
+        const number = /^[0-9]+$/.test(String(card.localId || "")) ? parseInt(card.localId, 10) : null;
+        if (number !== null) { bump(stats.numbers, number); }
+        if (price !== null) {
+          const cents = Math.round(price * 100);
+          bump(stats.cents, cents % 100);
+          if (price < 100) { bump(stats.dollarBins, Math.floor(price)); }
+          bump(stats.exactPrices, cents);
+        }
+        if (hp > 0) { bump(stats.hpExact, hp); }
+        if (card.regulationMark) { bump(stats.regMarks, String(card.regulationMark).toUpperCase()); }
+        if (card.illustrator) {
+          const initial = normalizeName(card.illustrator).charAt(0);
+          if (initial) {
+            artistInitialSets[initial] = artistInitialSets[initial] || new Set();
+            artistInitialSets[initial].add(card.illustrator);
+          }
+        }
+        if (card.set && card.set.name) {
+          const setInitial = normalizeName(card.set.name).charAt(0);
+          if (setInitial) {
+            setInitialSets[setInitial] = setInitialSets[setInitial] || new Set();
+            setInitialSets[setInitial].add(card.set.name);
+          }
+        }
+        const typeKeys = Array.isArray(card.types) ? card.types.map(function (x) { return String(x).toLowerCase(); }) : [];
+        typeKeys.forEach(function (type) {
+          bump(stats.typeVariant, type + "|" + item.variant);
+        });
+
+        // Variety
+        if (card.set && card.set.name) {
+          setNames.add(card.set.name);
+        }
+        if (card.name) {
+          cardNames.add(String(card.name).toLowerCase());
+          paddedNames.add(" " + normalizeName(card.name) + " ");
+        }
+        if (card.illustrator) {
+          artists.add(card.illustrator);
+        }
+        if (card.id) {
+          copies[card.id] = (copies[card.id] || 0) + 1;
+          stats.maxCopies = Math.max(stats.maxCopies, copies[card.id]);
+        }
+      });
+
+      Object.keys(artistInitialSets).forEach(function (letter) {
+        stats.artistInitials[letter] = artistInitialSets[letter].size;
+      });
+      Object.keys(setInitialSets).forEach(function (letter) {
+        stats.setInitials[letter] = setInitialSets[letter].size;
+      });
+      stats.sets = setNames.size;
+      stats.names = cardNames.size;
+      stats.illustrators = artists.size;
+      stats.distinctYears = yearSet.size;
+      stats.typeKinds = typeSet.size;
+      stats.packs = Object.keys(packs).length;
+
+      // Does any card you've flipped have this Pokémon's name?
+      const nameList = Array.from(paddedNames);
+      stats.hasName = function (normalizedName) {
+        const needle = " " + normalizedName + " ";
+        for (let i = 0; i < nameList.length; i++) {
+          if (nameList[i].includes(needle)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Pack feats: only packs where every card has been flipped.
+      Object.keys(packs).forEach(function (key) {
+        const items = packs[key];
+        const allFlipped = items.every(function (item) {
+          return item.revealed;
+        });
+        if (!allFlipped) {
+          return;
+        }
+        let value = 0;
+        let foils = 0;
+        let minPrice = Infinity;
+        const packTypes = new Set();
+        const packSets = new Set();
+        items.forEach(function (item) {
+          const price = getItemPrice(item);
+          value += price === null ? 0 : price;
+          minPrice = Math.min(minPrice, price === null ? 0 : price);
+          if (item.variant === "holo" || item.variant === "reverse") {
+            foils++;
+          }
+          if (Array.isArray(item.card.types)) {
+            item.card.types.forEach(function (type) {
+              packTypes.add(String(type).toLowerCase());
+            });
+          }
+          if (item.card.set && item.card.set.name) {
+            packSets.add(item.card.set.name);
+          }
+        });
+        stats.bestPackValue = Math.max(stats.bestPackValue, value);
+        stats.bestFoilPack = Math.max(stats.bestFoilPack, foils);
+        // The pack's cheapest card, but only for full 7-card packs.
+        if (items.length >= PACK_SIZE) {
+          stats.bestPackMinPrice = Math.max(stats.bestPackMinPrice, minPrice);
+          stats.bestPackSets = Math.max(stats.bestPackSets, packSets.size);
+        }
+        stats.bestPackTypes = Math.max(stats.bestPackTypes, packTypes.size);
+
+        // Silly pack feats
+        const names = items.map(function (item) { return normalizeName(item.card.name); });
+        const prices = items.map(function (item) {
+          const price = getItemPrice(item);
+          return price === null ? 0 : price;
+        });
+        let ascending = items.length > 1;
+        let descending = items.length > 1;
+        for (let i = 1; i < items.length; i++) {
+          if (!(names[i - 1] < names[i])) { ascending = false; }
+          if (!(names[i - 1] > names[i])) { descending = false; }
+        }
+        let priceUp = items.length > 1;
+        let priceDown = items.length > 1;
+        for (let i = 1; i < items.length; i++) {
+          if (!(prices[i - 1] < prices[i])) { priceUp = false; }
+          if (!(prices[i - 1] > prices[i])) { priceDown = false; }
+        }
+        if (ascending) { stats.packAlphaAsc = true; }
+        if (descending) { stats.packAlphaDesc = true; }
+        if (priceUp) { stats.packPriceAsc = true; }
+        if (priceDown) { stats.packPriceDesc = true; }
+        const packCents = Math.round(value * 100);
+        if (items.length >= PACK_SIZE) {
+          stats.packCents[packCents % 100] = true;
+          if (packCents % 100 === 0 && packCents > 0) { stats.packRound = true; }
+        }
+        // The biggest group of cards that share something.
+        function biggestGroup(getKeys) {
+          const counts = {};
+          let best = 0;
+          items.forEach(function (item) {
+            getKeys(item).forEach(function (k) {
+              counts[k] = (counts[k] || 0) + 1;
+              best = Math.max(best, counts[k]);
+            });
+          });
+          return best;
+        }
+        stats.packSameFirst = Math.max(stats.packSameFirst, biggestGroup(function (item) {
+          const letter = normalizeName(item.card.name).replace(/[^a-z]/g, "").charAt(0);
+          return letter ? [letter] : [];
+        }));
+        stats.packSameSet = Math.max(stats.packSameSet, biggestGroup(function (item) {
+          return item.card.set ? [item.card.set.name] : [];
+        }));
+        stats.packSameType = Math.max(stats.packSameType, biggestGroup(function (item) {
+          return Array.isArray(item.card.types) ? item.card.types : [];
+        }));
+        stats.packSameRarity = Math.max(stats.packSameRarity, biggestGroup(function (item) {
+          return item.card.rarity ? [String(item.card.rarity).toLowerCase()] : [];
+        }));
+        stats.packSameName = Math.max(stats.packSameName, biggestGroup(function (item) {
+          return [item.card.name];
+        }));
+        ["pokemon", "trainer", "energy"].forEach(function (kind) {
+          const count = items.filter(function (item) {
+            return String(item.card.category || "").toLowerCase() === kind;
+          }).length;
+          stats.packCategory[kind] = Math.max(stats.packCategory[kind] || 0, count);
+        });
+        const firstLetters = new Set();
+        let hpSum = 0;
+        items.forEach(function (item) {
+          const letter = normalizeName(item.card.name).replace(/[^a-z]/g, "").charAt(0);
+          if (letter) { firstLetters.add(letter); }
+          hpSum += Number(item.card.hp) > 0 ? Number(item.card.hp) : 0;
+        });
+        stats.packFirstLetters = Math.max(stats.packFirstLetters, firstLetters.size);
+        stats.packHp = Math.max(stats.packHp, hpSum);
+      });
+
+      // Days you opened packs, and the longest run of them in a row.
+      const dayNumbers = [];
+      days.forEach(function (day) {
+        const number = dayNumber(day);
+        if (number !== null) {
+          dayNumbers.push(number);
+        }
+      });
+      stats.activeDays = dayNumbers.length;
+
+      // The calendar: which dates, weekdays and months you opened packs on.
+      days.forEach(function (day) {
+        const number = dayNumber(day);
+        if (number === null) { return; }
+        const month = parseInt(day.slice(5, 7), 10);
+        const dom = parseInt(day.slice(8, 10), 10);
+        const weekday = (((number + 4) % 7) + 7) % 7;   // 1970-01-01 was a Thursday
+        stats.dates[day.slice(5)] = true;
+        bump(stats.weekdays, weekday);
+        bump(stats.months, month);
+        stats.doms[dom] = true;
+        if (weekday === 5 && dom === 13) { stats.friday13 = true; }
+      });
+      dayNumbers.sort(function (a, b) { return a - b; });
+      let run = 0;
+      let previous = null;
+      dayNumbers.forEach(function (number) {
+        run = (previous !== null && number === previous + 1) ? run + 1 : 1;
+        stats.streak = Math.max(stats.streak, run);
+        previous = number;
+      });
+
+      return stats;
+    }
+
+    // ----- Working out points -----
+
+    // Which achievements the given cards satisfy, as a list.
+    function earnedAchievements(items) {
+      const stats = computeStats(items);
+      return ACHIEVEMENTS.filter(function (achievement) {
+        return achievement.value(stats) >= achievement.target;
+      });
+    }
+
+    // Add up the points of a list of achievements.
+    function sumPoints(list) {
+      let total = 0;
+      list.forEach(function (achievement) {
+        total += achievement.points;
+      });
+      return total;
+    }
+
+    // Nothing about achievements is saved. Points are worked out from your
+    // collection each time. A pack's points are the achievements your
+    // collection satisfies now that it didn't satisfy before the pack.
+    function getPackAchievements() {
+      if (currentPack.length === 0) {
+        return [];
+      }
+      const packId = currentPack[0].packId;
+      const before = collection.filter(function (item) {
+        return item.packId !== packId;
+      });
+      const had = new Set(earnedAchievements(before).map(function (a) { return a.id; }));
+      return earnedAchievements(collection).filter(function (achievement) {
+        return !had.has(achievement.id);
+      });
+    }
+
+    // ----- The pack summary (shown under the pack after every flip) -----
+
+    // Show the summary only once every card in the pack has been flipped.
+    // "delayMs" waits for the last flip to finish first.
+    function updatePackSummary(delayMs) {
+      setTimeout(updateAchievementCount, delayMs || 0);
+      const allFlipped = currentPack.length > 0 && currentPack.every(function (entry) {
+        return entry.flipped;
+      });
+      if (!allFlipped) {
+        packSummary.hidden = true;
+        return;
+      }
+      setTimeout(renderPackSummary, delayMs || 0);
+    }
+
+    // Draw the summary: the points this pack's achievements added up to.
+    function renderPackSummary() {
+      const unlocked = getPackAchievements()
+        .sort(function (a, b) { return b.points - a.points; });
+
+      let points = 0;
+      unlocked.forEach(function (achievement) {
+        points += achievement.points;
+      });
+
+      packSummary.innerHTML = "";
+
+      const heading = document.createElement("h2");
+      heading.textContent = "Pack summary";
+      // The pack's total value: the TCGplayer prices of its cards added up.
+      let packValue = 0;
+      currentPack.forEach(function (entry) {
+        const price = getTcgplayerPrice(entry.card, entry.variant);
+        if (typeof price === "number") {
+          packValue += price;
+        }
+      });
+      const valueBox = document.createElement("div");
+      valueBox.className = "summary-value";
+      valueBox.textContent = "Total pack value: " + formatMoney(packValue, "USD") + " (TCGplayer)";
+
+      const pointsBox = document.createElement("div");
+      pointsBox.className = "summary-points";
+      pointsBox.textContent = "+" + fmt(points) + " points";
+      const sub = document.createElement("div");
+      sub.className = "summary-sub";
+      sub.textContent = unlocked.length === 0
+        ? "No new achievements from this pack."
+        : unlocked.length + (unlocked.length === 1 ? " achievement" : " achievements") + " unlocked";
+      packSummary.appendChild(heading);
+      packSummary.appendChild(valueBox);
+      packSummary.appendChild(pointsBox);
+      packSummary.appendChild(sub);
+
+      if (unlocked.length > 0) {
+        const list = document.createElement("div");
+        list.className = "summary-list";
+        unlocked.slice(0, 12).forEach(function (achievement) {
+          const tier = getTier(achievement.points);
+          const chip = document.createElement("span");
+          chip.className = "summary-chip";
+          chip.style.borderColor = tier.color;
+          chip.textContent = achievement.icon + " " + achievement.name + " +" + fmt(achievement.points);
+          list.appendChild(chip);
+        });
+        if (unlocked.length > 12) {
+          const more = document.createElement("span");
+          more.className = "summary-chip";
+          more.textContent = "+" + (unlocked.length - 12) + " more";
+          list.appendChild(more);
+        }
+        packSummary.appendChild(list);
+      }
+
+      packSummary.hidden = false;
+    }
+
+    // ----- The achievements page (only earned achievements are shown) -----
+
+    // Update the number on the "Achievements" button.
+    function updateAchievementCount() {
+      achievementCount.textContent = earnedAchievements(collection).length;
+      if (!viewAchievements.hidden) {
+        renderAchievements();
+      }
+    }
+
+    const openAchievementSections = new Set();
+
+    // Draw the page. Achievements you haven't earned are not listed at all.
+    function renderAchievements() {
+      const earned = earnedAchievements(collection);
+      achievementList.innerHTML = "";
+      achievementSummary.textContent = earned.length === 0
+        ? "No achievements yet. Open a pack and flip some cards!"
+        : fmt(earned.length) + (earned.length === 1 ? " achievement" : " achievements") +
+          " unlocked · " + fmt(sumPoints(earned)) + " points";
+
+      const search = achievementSearchBox.value.trim().toLowerCase();
+      const shown = earned.filter(function (achievement) {
+        return search === "" || (achievement.name + " " + achievement.description + " " +
+          achievement.group + " " + achievement.category).toLowerCase().indexOf(search) !== -1;
+      });
+
+      // Sort them into categories, in the order the categories first appear.
+      const categories = [];
+      const byCategory = {};
+      shown.forEach(function (achievement) {
+        if (!byCategory[achievement.category]) {
+          byCategory[achievement.category] = [];
+          categories.push(achievement.category);
+        }
+        byCategory[achievement.category].push(achievement);
+      });
+
+      categories.forEach(function (category) {
+        const list = byCategory[category];
+        const section = document.createElement("details");
+        section.className = "ach-section";
+        section.open = search !== "" || openAchievementSections.has(category);
+        section.addEventListener("toggle", function () {
+          if (search !== "") { return; }
+          if (section.open) {
+            openAchievementSections.add(category);
+          } else {
+            openAchievementSections.delete(category);
+          }
+        });
+        const title = document.createElement("summary");
+        title.textContent = category + " · " + list.length + " · " + fmt(sumPoints(list)) + " pts";
+        section.appendChild(title);
+
+        let currentGroup = null;
+        let grid = null;
+        list.forEach(function (achievement) {
+          if (achievement.group !== currentGroup) {
+            currentGroup = achievement.group;
+            const heading = document.createElement("h3");
+            heading.className = "ach-group";
+            heading.textContent = currentGroup;
+            section.appendChild(heading);
+            grid = document.createElement("div");
+            grid.className = "ach-grid";
+            section.appendChild(grid);
+          }
+          grid.appendChild(createAchievementCard(achievement));
+        });
+        achievementList.appendChild(section);
+      });
+
+      if (earned.length > 0 && shown.length === 0) {
+        achievementList.textContent = "No earned achievements match.";
+      }
+    }
+
+    // One earned achievement.
+    function createAchievementCard(achievement) {
+      const tier = getTier(achievement.points);
+      const card = document.createElement("div");
+      card.className = "ach";
+      const icon = document.createElement("div");
+      icon.className = "ach-icon";
+      icon.textContent = achievement.icon;
+      const body = document.createElement("div");
+      body.className = "ach-body";
+      const name = document.createElement("div");
+      name.className = "ach-name";
+      name.textContent = achievement.name;
+      const points = document.createElement("span");
+      points.className = "ach-points";
+      points.style.color = tier.color;
+      points.textContent = "+" + fmt(achievement.points) + " · " + tier.name;
+      name.appendChild(points);
+      const description = document.createElement("div");
+      description.className = "ach-desc";
+      description.textContent = achievement.description;
+      body.appendChild(name);
+      body.appendChild(description);
+      card.appendChild(icon);
+      card.appendChild(body);
+      return card;
+    }
+
+    achievementSearchBox.addEventListener("input", renderAchievements);
 
     // ---------- Opening a pack ----------
 
@@ -1615,6 +3427,8 @@
         }
 
         // Step 3: build the pack. Every card starts face down (flipped: false).
+        // All 7 share one pack id, so achievements can tell packs apart.
+        const packId = "p" + Date.now();
         // The picture address is the card's image link plus "/high.png".
         currentPack = chosen.map(function (item) {
           return {
@@ -1622,7 +3436,8 @@
             imageUrl: item.brief.image + "/high.png",
             flipped: false,
             variant: item.variant,
-            packDate: getToday()
+            packDate: getToday(),
+            packId: packId
           };
         });
 
@@ -1630,6 +3445,11 @@
         // and save the pack so a refresh keeps it.
         addPackToCollection(currentPack);
         renderCollection();       // keeps the collection page up to date
+        // Learn the release year of each card's set (for the year achievements).
+        await fetchMissingSetYears(currentPack.map(function (entry) {
+          return entry.card.set ? entry.card.set.id : null;
+        }));
+        renderCollection();       // now that the years are known, update points
         renderPack();
         savePack();
         statusText.textContent = "";
@@ -1676,6 +3496,16 @@
       renderPack();
       showAlreadyOpenedMessage();
     }
+
+    // Load your earned achievements. Any you've already earned with the cards
+    // you have are unlocked quietly, without a pop-up.
+    setYears = loadSetYears();
+    try {
+      localStorage.removeItem("achievements");   // old saved achievements aren't used any more
+    } catch (error) {
+      console.error(error);
+    }
+    backfillSetYears();   // fills in missing release years in the background
 
     updateCollectionCount();
     renderCollection();
