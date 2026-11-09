@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pokémon Pack Opener</title>
+
+  <!-- STYLES: how the page looks. Change colors and sizes here. -->
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #1b1b2f;
+      color: #f1f1f1;
+      text-align: center;
+      padding: 24px;
+    }
+    button {
+      font-family: inherit;
+    }
+    /* ---------- The buttons that switch between the two pages ---------- */
+    #tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0 24px;
+    }
+    .tab-button {
+      font-size: 1rem;
+      padding: 8px 20px;
+      border: 2px solid #ffcb05;
+      border-radius: 999px;
+      background: transparent;
+      color: #ffcb05;
+      cursor: pointer;
+    }
+    .tab-button.active {
+      background: #ffcb05;          /* the current page is filled in */
+      color: #1b1b2f;
+    }
+
+    /* ---------- The collection page's sorting bar ---------- */
+    #collection-toolbar {
+      margin-bottom: 8px;
+    }
+    #collection-toolbar label {
+      margin-right: 8px;
+    }
+    #sort-select {
+      font-size: 1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+    }
+    #collection-summary {
+      min-height: 1.5em;
+      margin: 8px 0 24px;
+      opacity: 0.85;
+    }
+
+    #open-button {
+      font-size: 1.1rem;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background: #ffcb05;   /* Pikachu yellow */
+      color: #1b1b2f;
+      cursor: pointer;
+    }
+    #open-button:disabled {
+      opacity: 0.5;          /* looks greyed out while loading */
+      cursor: wait;
+    }
+    #status {
+      min-height: 1.5em;     /* keeps layout from jumping */
+    }
+    #hint {
+      position: relative;
+      z-index: 2;                   /* keeps the tip readable above glows */
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+
+    /* ---------- The pack: a row of cards that wraps onto new lines ---------- */
+    #pack,
+    #collection-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      max-width: 1260px;            /* wide enough for all 7 cards in one row */
+      margin: 0 auto;
+    }
+    .card-slot {
+      width: 160px;
+    }
+
+    /* The stage holds a card and the glowing aura behind it. */
+    .card-stage {
+      position: relative;
+    }
+    .card-stage .card {
+      position: relative;
+      z-index: 1;                   /* keeps the card in front of its aura */
+    }
+
+    /* ---------- Auras: a glow behind a card ---------- */
+    /* Every aura starts invisible, so a face-down card gives nothing away.
+       Once the card is flipped (the stage gets the "flipped" class),
+       the aura fades in. */
+    .aura {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      bottom: -6px;
+      left: -6px;
+      border-radius: 16px;
+      opacity: 0;
+      --aura-opacity: 1;            /* how strong the aura is once revealed */
+      pointer-events: none;         /* clicks go through to the card */
+      z-index: 0;
+      transition: opacity 0.6s 0.3s;
+    }
+    .card-stage.flipped .aura {
+      opacity: var(--aura-opacity);
+    }
+
+    /* HOLO: a rainbow glow that slowly cycles through colors. */
+    .aura-holo {
+      --aura-opacity: 0.8;          /* a little softer than full strength */
+      background: linear-gradient(135deg, #ff0080, #ff8c00, #ffe600, #00e676, #00b0ff, #7c4dff);
+      filter: blur(10px);
+      animation: holo-cycle 4s linear infinite;
+    }
+    @keyframes holo-cycle {
+      from { filter: blur(10px) hue-rotate(0deg); }
+      to   { filter: blur(10px) hue-rotate(360deg); }
+    }
+
+    /* REVERSE HOLO: a cool silver, ice-blue and lavender glow that pulses. */
+    .aura-reverse {
+      --aura-opacity: 0.2;          /* much softer: just a faint shimmer */
+      background: linear-gradient(135deg, #e0f7fa, #40c4ff, #b388ff, #e0f7fa);
+      filter: blur(11px);
+      animation: reverse-pulse 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes reverse-pulse {
+      from { transform: scale(0.98); }
+      to   { transform: scale(1.06); }
+    }
+
+    /* EXPENSIVE (over $100 on TCGplayer): a bright gold glow that throbs. */
+    .aura-expensive {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      border-radius: 12px;
+      box-shadow: 0 0 18px 6px rgba(255, 215, 0, 0.9),
+                  0 0 50px 18px rgba(255, 170, 0, 0.55);
+      animation: gold-throb 1.6s ease-in-out infinite alternate;
+    }
+    @keyframes gold-throb {
+      from { box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.7),
+                         0 0 36px 10px rgba(255, 170, 0, 0.4); }
+      to   { box-shadow: 0 0 26px 10px rgba(255, 225, 60, 1),
+                         0 0 70px 28px rgba(255, 170, 0, 0.7); }
+    }
+
+    /* OVER $1000: the over-the-top aura. A huge glow that cycles through
+       gold, pink and cyan while it swells and shrinks. */
+    .aura-legendary {
+      top: -4px;
+      right: -4px;
+      bottom: -4px;
+      left: -4px;
+      border-radius: 14px;
+      box-shadow: 0 0 20px 8px #ffd700,
+                  0 0 50px 22px #ff2bd6,
+                  0 0 90px 40px #00e5ff;
+      animation: legend-glow 2.2s linear infinite;
+    }
+    @keyframes legend-glow {
+      0%   { filter: hue-rotate(0deg) brightness(1);     transform: scale(1); }
+      50%  { filter: hue-rotate(180deg) brightness(1.3); transform: scale(1.05); }
+      100% { filter: hue-rotate(360deg) brightness(1);   transform: scale(1); }
+    }
+
+    /* Twinkling stars at two corners of an over-$1000 card. */
+    .aura-sparkle {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+    .aura-sparkle::before,
+    .aura-sparkle::after {
+      content: "\2726";             /* a four-pointed star */
+      position: absolute;
+      color: #fff;
+      text-shadow: 0 0 8px #fff, 0 0 18px #ffd700;
+      animation: twinkle 0.9s ease-in-out infinite alternate;
+    }
+    .aura-sparkle::before {
+      top: -16px;
+      left: -14px;
+      font-size: 1.7rem;
+    }
+    .aura-sparkle::after {
+      bottom: -14px;
+      right: -12px;
+      font-size: 1.3rem;
+      animation-delay: 0.45s;
+    }
+    @keyframes twinkle {
+      from { opacity: 0.3; transform: scale(0.6) rotate(0deg); }
+      to   { opacity: 1;   transform: scale(1.2) rotate(45deg); }
+    }
+
+    /* ---------- The TCGplayer price badge on top of each card ---------- */
+    .price-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);  /* centers the badge on the card */
+      z-index: 3;                   /* in front of the card and its aura */
+      padding: 3px 12px;
+      border-radius: 999px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+      font-size: 0.85rem;
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: 0;                   /* hidden until the card is flipped */
+      pointer-events: none;
+      transition: opacity 0.4s 0.35s;
+    }
+    .card-stage.flipped .price-badge {
+      opacity: 1;
+    }
+    /* A card with no TCGplayer price for its version. */
+    .price-none {
+      color: #9a9ab8;
+      font-weight: 500;
+    }
+
+    /* OVER $100: a gold badge with a shine sweeping across it. */
+    .price-high {
+      color: #3a2500;
+      border-color: #fff3a0;
+      background: linear-gradient(110deg, #ffb300 25%, #fff59d 45%, #ffb300 65%);
+      background-size: 250% 100%;
+      box-shadow: 0 0 10px 2px rgba(255, 200, 0, 0.9);
+      animation: badge-shine 2s linear infinite;
+    }
+    @keyframes badge-shine {
+      from { background-position: 150% 0; }
+      to   { background-position: -100% 0; }
+    }
+
+    /* OVER $1000: a bigger, rainbow, pulsing, wobbling badge with its own stars. */
+    .price-legendary {
+      padding: 4px 16px;
+      font-size: 1.1rem;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      border: 2px solid #fff;
+      background: linear-gradient(90deg, #ff0080, #ff8c00, #ffe600, #00e676, #00b0ff, #7c4dff, #ff0080);
+      background-size: 300% 100%;
+      box-shadow: 0 0 14px 4px rgba(255, 255, 255, 0.9),
+                  0 0 30px 12px rgba(255, 0, 200, 0.7);
+      animation: legend-slide 2s linear infinite,
+                 legend-wobble 0.7s ease-in-out infinite alternate;
+    }
+    .price-legendary::before,
+    .price-legendary::after {
+      content: "\2726";
+      position: absolute;
+      top: 50%;
+      color: #fff;
+      text-shadow: 0 0 8px #fff, 0 0 16px #ffd700;
+      animation: twinkle 0.6s ease-in-out infinite alternate;
+    }
+    .price-legendary::before {
+      left: -16px;
+      margin-top: -0.7em;
+    }
+    .price-legendary::after {
+      right: -16px;
+      margin-top: -0.7em;
+      animation-delay: 0.3s;
+    }
+    @keyframes legend-slide {
+      from { background-position: 0% 0; }
+      to   { background-position: 300% 0; }
+    }
+    @keyframes legend-wobble {
+      from { transform: translateX(-50%) scale(1)    rotate(-2deg); }
+      to   { transform: translateX(-50%) scale(1.14) rotate(2deg); }
+    }
+
+    /* If someone has asked their device to reduce motion, hold things still. */
+    @media (prefers-reduced-motion: reduce) {
+      .aura,
+      .aura::before,
+      .aura::after,
+      .price-badge,
+      .price-badge::before,
+      .price-badge::after {
+        animation: none;
+      }
+    }
+
+    /* The card itself is a button, so it can be clicked and used with a keyboard. */
+    .card {
+      width: 100%;
+      aspect-ratio: 5 / 7;          /* the shape of a trading card */
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+      perspective: 800px;           /* gives the flip a 3D look */
+    }
+    /* The inner part is what actually spins around. */
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    /* When a card has the "flipped" class, it spins halfway around. */
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    /* Both sides of the card sit on top of each other. */
+    .card-face {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      backface-visibility: hidden;          /* hide a side when it faces away */
+      -webkit-backface-visibility: hidden;  /* same thing, for Safari */
+    }
+    /* The face-down side: a simple design of our own. */
+    .card-back {
+      background:
+        radial-gradient(circle at center, #ffcb05 0 18%, transparent 19%),
+        linear-gradient(135deg, #3b4cca, #1d2670);
+      border: 4px solid #ffcb05;
+      box-sizing: border-box;
+    }
+    /* The picture side starts turned around so it is hidden until the flip. */
+    .card-front {
+      transform: rotateY(180deg);
+    }
+    .card-front img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* The name under each card is invisible until the card is flipped. */
+    .card-name {
+      position: relative;
+      z-index: 2;                           /* keeps names readable above glows */
+      margin: 8px 0 0;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.4s 0.3s;        /* waits for the flip to start */
+    }
+    .card-name.visible {
+      opacity: 1;
+    }
+    /* A small extra line under a name (used on the collection page). */
+    .card-sub {
+      position: relative;
+      z-index: 2;
+      margin: 2px 0 0;
+      font-size: 0.75rem;
+      opacity: 0.7;
+    }
+    /* The set name under a card's name in the pack. Hidden until the flip. */
+    .card-set {
+      opacity: 0;
+      transition: opacity 0.4s 0.3s;
+    }
+    .card-set.visible {
+      opacity: 0.7;
+    }
+    /* The "Reveal all cards" button. */
+    #reveal-button {
+      font-size: 1rem;
+      padding: 8px 20px;
+      margin: 0 0 24px;
+      border: 2px solid #ffcb05;
+      border-radius: 8px;
+      background: transparent;
+      color: #ffcb05;
+      cursor: pointer;
+    }
+    #reveal-button:hover {
+      background: rgba(255, 203, 5, 0.15);
+    }
+    /* Cards in the collection that haven't been flipped yet. */
+    .card-name.muted.visible {
+      opacity: 0.5;
+    }
+    .card:disabled {
+      cursor: default;
+    }
+    /* Flipped cards get a hover effect to hint that they can be clicked. */
+    .card.flipped:hover .card-inner {
+      transform: rotateY(180deg) scale(1.04);
+    }
+    .card:focus-visible {
+      outline: 3px solid #ffcb05;
+      outline-offset: 4px;
+    }
+
+    /* ---------- The pop-up that shows one card enlarged ---------- */
+    #modal {
+      position: fixed;              /* stays in place over the whole page */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow-y: auto;             /* scroll if the content is tall */
+      padding: 24px 12px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    #modal[hidden] {
+      display: none;                /* makes the "hidden" attribute work */
+    }
+    #modal-content {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+    }
+    #modal-close {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: #ffcb05;
+      color: #1b1b2f;
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 1;
+    }
+    #modal-image {
+      position: relative;
+      z-index: 1;                   /* keeps the picture in front of its aura */
+      width: 100%;
+      border-radius: 14px;
+      display: block;
+    }
+
+    /* The details table */
+    #card-details {
+      width: 100%;
+      margin: 16px auto 0;
+      border-collapse: collapse;    /* removes gaps between cells */
+      background: #26264a;
+      border-radius: 12px;
+      overflow: hidden;             /* keeps the rounded corners tidy */
+      text-align: left;
+    }
+    #card-details th,
+    #card-details td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #3a3a66;
+    }
+    #card-details th {
+      width: 40%;
+      color: #ffcb05;               /* labels in yellow */
+      font-weight: 600;
+    }
+    #card-details tr:last-child th,
+    #card-details tr:last-child td {
+      border-bottom: none;          /* no line under the last row */
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- PAGE CONTENT: the pieces you see on screen. -->
+  <h1>Pokémon Pack Opener</h1>
+
+  <!-- Buttons to switch between the two pages. -->
+  <nav id="tabs">
+    <button class="tab-button active" id="tab-pack" type="button">Open packs</button>
+    <button class="tab-button" id="tab-collection" type="button">Collection (<span id="collection-count">0</span>)</button>
+  </nav>
+
+  <!-- PAGE 1: opening packs. -->
+  <section id="view-pack">
+    <button id="open-button">Open a pack</button>
+
+    <!-- Messages like "Opening pack..." or errors show up here. -->
+    <p id="status"></p>
+
+    <!-- A tip that appears once a pack is open. -->
+    <p id="hint" hidden>Click a card to flip it, or reveal them all at once. Click a flipped card to see it up close.</p>
+
+    <!-- Flips every card in the pack. It hides itself once nothing is face down. -->
+    <button id="reveal-button" type="button" hidden>Reveal all cards</button>
+
+    <!-- The script puts the cards in here. -->
+    <div id="pack"></div>
+  </section>
+
+  <!-- PAGE 2: every card you've ever pulled. -->
+  <section id="view-collection" hidden>
+    <div id="collection-toolbar">
+      <label for="sort-select">Sort by</label>
+      <select id="sort-select">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="price-high">Price: high to low</option>
+        <option value="price-low">Price: low to high</option>
+        <option value="rarity-high">Rarity: high to low</option>
+        <option value="rarity-low">Rarity: low to high</option>
+        <option value="name">Name: A to Z</option>
+      </select>
+    </div>
+
+    <!-- A line like "21 cards · Total value $54.20". -->
+    <p id="collection-summary"></p>
+
+    <!-- The script puts the collection's cards in here. -->
+    <div id="collection-grid"></div>
+  </section>
+
+  <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
+  <div id="modal" hidden>
+    <div id="modal-content">
+      <button id="modal-close" aria-label="Close">×</button>
+      <!-- The stage lets the enlarged card have its aura too. -->
+      <div id="modal-stage" class="card-stage flipped">
+        <img id="modal-image" alt="">
+      </div>
+      <h2 id="modal-name"></h2>
+      <table id="card-details"></table>
+    </div>
+  </div>
+
+  <footer>
+    Unofficial fan project. Not affiliated with or endorsed by Nintendo,
+    Game Freak, Creatures, or The Pokémon Company. Card data from TCGdex.
+  </footer>
+
+  <!-- SCRIPT: the code that does the work. -->
+  <script>
+    // The address of the TCGdex API (English card data).
+    const API_URL = "https://api.tcgdex.net/v2/en/cards";
+
+    // How many cards are in a pack.
+    const PACK_SIZE = 7;
+
+    // Cards with no price are skipped, so filling a pack can take a few tries.
+    // This is the most times we'll go back for more cards before giving up.
+    const MAX_ROUNDS = 10;
+
+    // Set this to false while testing if you want unlimited packs.
+    const ONE_PACK_PER_DAY = false;
+
+    // The name we use to save your pack in the browser's storage.
+    const STORAGE_KEY = "lastPack";
+
+    // The names we use to save your collection and your chosen sort order.
+    const COLLECTION_KEY = "collection";
+    const SORT_KEY = "collectionSort";
+
+    // A card whose TCGplayer price is above this (in US dollars) gets the gold
+    // aura and a gold price badge.
+    const EXPENSIVE_PRICE = 100;
+
+    // Above this price, a card gets the over-the-top effects.
+    const LEGENDARY_PRICE = 1000;
+
+    // Grab the page elements we need so we can change them from code.
+    const openButton = document.getElementById("open-button");
+    const statusText = document.getElementById("status");
+    const hint = document.getElementById("hint");
+    const revealButton = document.getElementById("reveal-button");
+    const packArea = document.getElementById("pack");
+    const tabPack = document.getElementById("tab-pack");
+    const tabCollection = document.getElementById("tab-collection");
+    const collectionCount = document.getElementById("collection-count");
+    const viewPack = document.getElementById("view-pack");
+    const viewCollection = document.getElementById("view-collection");
+    const sortSelect = document.getElementById("sort-select");
+    const collectionSummary = document.getElementById("collection-summary");
+    const collectionGrid = document.getElementById("collection-grid");
+    const modal = document.getElementById("modal");
+    const modalClose = document.getElementById("modal-close");
+    const modalStage = document.getElementById("modal-stage");
+    const modalImage = document.getElementById("modal-image");
+    const modalName = document.getElementById("modal-name");
+    const cardDetails = document.getElementById("card-details");
+
+    // We'll keep the list of all cards here after the first download,
+    // so later packs are fast.
+    let allCards = null;
+
+    // The cards in the pack on screen. Each entry looks like:
+    // { card: (full card data), imageUrl: "...", flipped: true or false,
+    //   variant: "normal", "holo" or "reverse", packDate: "2026-11-09",
+    //   collectionId: (links the card to its entry in the collection) }
+    let currentPack = [];
+
+    // One small function per card in the pack that flips it on screen.
+    // "Reveal all" uses these to flip the cards one after another.
+    let packFlippers = [];
+
+    // Every card you've pulled, from every pack. Each item looks like:
+    // { id, seq (pull order), card, imageUrl, variant, revealed, packDate }
+    let collection = [];
+
+    // ---------- Saving and loading (so a refresh keeps your pack) ----------
+
+    // Today's date as text, like "2026-11-09", using your computer's clock.
+    function getToday() {
+      const now = new Date();
+      const year = now.getFullYear();
+      // Months start at 0 in JavaScript, so we add 1.
+      // padStart makes sure single digits get a leading zero (5 becomes "05").
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
+    // Look up the pack we saved earlier. Returns null if there isn't one.
+    function loadSavedPack() {
+      // "try" lets us keep going even if the browser blocks storage.
+      try {
+        const text = localStorage.getItem(STORAGE_KEY);
+        if (!text) {
+          return null;
+        }
+        const saved = JSON.parse(text);
+        // Make sure the saved data has everything we need.
+        if (saved && saved.date && Array.isArray(saved.pack) && saved.pack.length > 0) {
+          return saved;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return null;
+    }
+
+    // Save the pack (and which cards are flipped) in the browser.
+    function savePack() {
+      try {
+        const saved = { date: getToday(), pack: currentPack };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // ---------- Talking to the API ----------
+
+    // Ask the API for something and return the answer as JSON data.
+    async function fetchFromApi(url) {
+      const response = await fetch(url);
+
+      // If the server said something went wrong, stop and report it.
+      if (!response.ok) {
+        throw new Error("The API returned an error (" + response.status + ").");
+      }
+      return response.json();
+    }
+
+    // Pick several different random cards from the list.
+    // excludeIds holds the ids of cards we've already looked at, so we
+    // never pick the same card twice for one pack.
+    function pickRandomCards(count, excludeIds) {
+      const picked = [];
+      const usedPositions = new Set();   // remembers which ones we've taken
+
+      // Stop early if there are no unused cards left, so we never loop forever.
+      while (picked.length < count &&
+             usedPositions.size + excludeIds.size < allCards.length) {
+        const position = Math.floor(Math.random() * allCards.length);
+        const brief = allCards[position];
+        // Only take a card if we haven't already picked or rejected it.
+        if (!usedPositions.has(position) && !excludeIds.has(brief.id)) {
+          usedPositions.add(position);
+          picked.push(brief);
+        }
+      }
+      return picked;
+    }
+
+    // ---------- Turning card data into readable text ----------
+
+    // Turn the card's "variants" info into readable text.
+    // variants looks like { normal: true, reverse: false, holo: true, ... }
+    // and a value of true means that printing of the card exists.
+    function formatVariants(variants) {
+      if (!variants) {
+        return undefined;
+      }
+      // Friendly names for each variant key.
+      const names = {
+        normal: "Normal",
+        reverse: "Reverse holo",
+        holo: "Holo",
+        firstEdition: "1st Edition"
+      };
+      const found = [];
+      Object.keys(names).forEach(function (key) {
+        if (variants[key] === true) {
+          found.push(names[key]);
+        }
+      });
+      return found.length > 0 ? found.join(", ") : undefined;
+    }
+
+    // Turn a price number into text like "$1.25".
+    // "unit" is the currency code the API gives us, like "USD" or "EUR".
+    function formatMoney(amount, unit) {
+      if (typeof amount !== "number") {
+        return undefined;
+      }
+      let symbol = unit + " ";               // fallback: show the code
+      if (unit === "USD" || !unit) {
+        symbol = "$";
+      } else if (unit === "EUR") {
+        symbol = "€";
+      }
+      // toLocaleString adds commas ("1,234.50") and keeps two decimals.
+      return symbol + amount.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // ---------- Variants and prices ----------
+
+    // Friendly names for the three versions a card can be drawn as.
+    const VARIANT_NAMES = { normal: "Normal", holo: "Holo", reverse: "Reverse holo" };
+
+    // Pick which version of a card is drawn.
+    // If the card exists as a holo and/or a reverse holo, we pick one of
+    // those at random. If it has neither, it is drawn as a normal card.
+    function chooseVariant(card) {
+      const eligible = [];
+      if (card.variants && card.variants.holo === true) {
+        eligible.push("holo");
+      }
+      if (card.variants && card.variants.reverse === true) {
+        eligible.push("reverse");
+      }
+      if (eligible.length === 0) {
+        return "normal";
+      }
+      // Pick one of the eligible versions at random.
+      return eligible[Math.floor(Math.random() * eligible.length)];
+    }
+
+    // Which TCGplayer price entries belong to each version of a card.
+    const TCGPLAYER_KEYS = {
+      normal: ["normal"],
+      holo: ["holofoil"],
+      reverse: ["reverse-holofoil", "reverse"]
+    };
+
+    // The TCGplayer price (in US dollars) for the version that was drawn.
+    // Returns a number, or undefined if there's no price for that version.
+    function getTcgplayerPrice(card, variant) {
+      const tcgplayer = card.pricing ? card.pricing.tcgplayer : null;
+      if (!tcgplayer) {
+        return undefined;
+      }
+      // Only trust prices that are in US dollars.
+      if (tcgplayer.unit && tcgplayer.unit !== "USD") {
+        return undefined;
+      }
+      const keys = TCGPLAYER_KEYS[variant] || [];
+      for (let i = 0; i < keys.length; i++) {
+        const prices = tcgplayer[keys[i]];
+        if (prices && typeof prices === "object") {
+          // Prefer the market price, but fall back to the middle price.
+          const amount = prices.marketPrice != null ? prices.marketPrice : prices.midPrice;
+          if (typeof amount === "number") {
+            return amount;
+          }
+        }
+      }
+      return undefined;
+    }
+
+    // The Cardmarket price (normally in euros) for the version that was drawn.
+    // Cardmarket has one price for non-foil cards and one for foil (holo)
+    // cards, and no separate price for reverse holos.
+    function getCardmarketPrice(card, variant) {
+      const cardmarket = card.pricing ? card.pricing.cardmarket : null;
+      if (!cardmarket) {
+        return undefined;
+      }
+      // "trend" is the recent market trend; "avg" is the average price.
+      if (variant === "normal") {
+        return cardmarket.trend != null ? cardmarket.trend : cardmarket.avg;
+      }
+      if (variant === "holo") {
+        return cardmarket["trend-holo"] != null ? cardmarket["trend-holo"] : cardmarket["avg-holo"];
+      }
+      return undefined;   // reverse holo: Cardmarket has no price for it
+    }
+
+    // Like chooseVariant, but only picks among versions that have a
+    // TCGplayer price. Returns nothing (null) if none of them do, which
+    // means the card has no usable pricing data and shouldn't be used.
+    function chooseVariantWithPrice(card) {
+      // The versions this card could be drawn as.
+      const candidates = [];
+      if (card.variants && card.variants.holo === true) {
+        candidates.push("holo");
+      }
+      if (card.variants && card.variants.reverse === true) {
+        candidates.push("reverse");
+      }
+      if (candidates.length === 0) {
+        candidates.push("normal");
+      }
+
+      // Keep only the versions that have a price.
+      const priced = candidates.filter(function (variant) {
+        return typeof getTcgplayerPrice(card, variant) === "number";
+      });
+      if (priced.length === 0) {
+        return null;
+      }
+      return priced[Math.floor(Math.random() * priced.length)];
+    }
+
+    // Is this card worth more than $100 on TCGplayer (for the version drawn)?
+    function isExpensive(entry) {
+      const price = getTcgplayerPrice(entry.card, entry.variant);
+      return typeof price === "number" && price > EXPENSIVE_PRICE;
+    }
+
+    // Is it worth more than $1000?
+    function isLegendary(entry) {
+      const price = getTcgplayerPrice(entry.card, entry.variant);
+      return typeof price === "number" && price > LEGENDARY_PRICE;
+    }
+
+    // ---------- The details table (inside the pop-up) ----------
+
+    // Fill the table with the card's details.
+    // "entry" holds the card data and which version (variant) was drawn.
+    // Not every card has every detail (Trainer cards have no HP, for
+    // example), so we only add a row when the card actually has that info.
+    function showDetails(entry) {
+      const card = entry.card;
+      const variant = entry.variant;
+      // Some cards have no pricing info, so we use an empty object instead.
+      const pricing = card.pricing || {};
+
+      // The TCGplayer price for the version we drew.
+      let tcgplayerText;
+      if (pricing.tcgplayer) {
+        const price = getTcgplayerPrice(card, variant);
+        tcgplayerText = typeof price === "number"
+          ? formatMoney(price, "USD")
+          : "Not listed for this version";
+      }
+
+      // The Cardmarket price for the version we drew.
+      let cardmarketText;
+      if (pricing.cardmarket) {
+        const price = getCardmarketPrice(card, variant);
+        if (typeof price === "number") {
+          cardmarketText = formatMoney(price, pricing.cardmarket.unit || "EUR");
+        } else if (variant === "reverse") {
+          cardmarketText = "No reverse holo price";
+        } else {
+          cardmarketText = "Not listed for this version";
+        }
+      }
+
+      // Each entry is [label, value]. A missing value is undefined.
+      const details = [
+        ["Set", card.set ? card.set.name : undefined],
+        ["Rarity", card.rarity],
+        ["Drawn as", VARIANT_NAMES[variant]],
+        ["Obtained", entry.packDate],
+        ["Category", card.category],
+        ["HP", card.hp],
+        ["Type", card.types ? card.types.join(", ") : undefined],
+        ["Stage", card.stage],
+        ["Attacks", card.attacks
+          ? card.attacks.map(function (a) { return a.name; }).join(", ")
+          : undefined],
+        ["Retreat cost", card.retreat],
+        ["Illustrator", card.illustrator],
+        ["Card number", card.localId],
+        ["Regulation mark", card.regulationMark],
+        ["All variants", formatVariants(card.variants)],
+        ["Price (TCGplayer)", tcgplayerText],
+        ["Price (Cardmarket)", cardmarketText]
+      ];
+
+      // If the card has no price data at all, say so.
+      if (!pricing.tcgplayer && !pricing.cardmarket) {
+        details.push(["Price", "No pricing data available"]);
+      }
+
+      // Clear out the rows from the previous card.
+      cardDetails.innerHTML = "";
+
+      // Add a table row for every detail that has a value.
+      details.forEach(function (detail) {
+        const label = detail[0];
+        const value = detail[1];
+        if (value !== undefined && value !== null && value !== "") {
+          const row = document.createElement("tr");
+
+          // The label goes in a header cell (th), the value in a data cell (td).
+          const labelCell = document.createElement("th");
+          labelCell.textContent = label;
+          const valueCell = document.createElement("td");
+          valueCell.textContent = value;
+
+          row.appendChild(labelCell);
+          row.appendChild(valueCell);
+          cardDetails.appendChild(row);
+        }
+      });
+    }
+
+    // Take every aura off a stage.
+    function removeAuras(stage) {
+      stage.querySelectorAll(".aura").forEach(function (old) {
+        old.remove();
+      });
+    }
+
+    // Add the glowing auras a card has earned to its stage.
+    // Holo cards get the rainbow aura, reverse holos get the icy aura,
+    // cards worth over $100 get the gold aura, and cards worth over $1000
+    // get the over-the-top aura with sparkles instead of the gold one.
+    function addAuras(stage, entry) {
+      // Remove any auras left over from a previous card.
+      removeAuras(stage);
+
+      const auraClasses = [];
+      if (entry.variant === "holo") {
+        auraClasses.push("aura-holo");
+      }
+      if (entry.variant === "reverse") {
+        auraClasses.push("aura-reverse");
+      }
+      if (isLegendary(entry)) {
+        auraClasses.push("aura-legendary");
+        auraClasses.push("aura-sparkle");
+      } else if (isExpensive(entry)) {
+        auraClasses.push("aura-expensive");
+      }
+
+      auraClasses.forEach(function (className) {
+        const aura = document.createElement("div");
+        aura.className = "aura " + className;
+        stage.appendChild(aura);
+      });
+    }
+
+    // Build the little price tag that sits on top of a card.
+    // It shows the TCGplayer price for the version drawn. In the pack, cards
+    // worth over $100 get a gold tag and cards over $1000 get a wild one.
+    // When "plain" is true (the collection page), every tag stays simple.
+    function createPriceBadge(entry, plain) {
+      const price = getTcgplayerPrice(entry.card, entry.variant);
+      const badge = document.createElement("div");
+      badge.className = "price-badge";
+
+      if (typeof price !== "number") {
+        badge.classList.add("price-none");
+        badge.textContent = "No price";
+      } else {
+        badge.textContent = formatMoney(price, "USD");
+        if (!plain && price > LEGENDARY_PRICE) {
+          badge.classList.add("price-legendary");
+        } else if (!plain && price > EXPENSIVE_PRICE) {
+          badge.classList.add("price-high");
+        }
+      }
+      return badge;
+    }
+
+    // ---------- The enlarged card pop-up ----------
+
+    // Show one card big, with its details table.
+    // "withEffects" is true when opened from the pack (the card keeps its
+    // aura) and false when opened from the collection (no effects).
+    function openModal(entry, withEffects) {
+      modalImage.src = entry.imageUrl;
+      modalImage.alt = entry.card.name;
+      modalName.textContent = entry.card.name;
+      if (withEffects) {
+        addAuras(modalStage, entry);
+      } else {
+        removeAuras(modalStage);
+      }
+      showDetails(entry);
+      modal.hidden = false;
+      modal.scrollTop = 0;       // start at the top of the pop-up
+
+      // Print the full card data to the Console (press F12)
+      // so you can see every field available.
+      console.log(entry.card);
+    }
+
+    // Hide the pop-up again.
+    function closeModal() {
+      modal.hidden = true;
+    }
+
+    // Close the pop-up when you click the X button...
+    modalClose.addEventListener("click", closeModal);
+
+    // ...or click the dark area outside the card...
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    // ...or press the Escape key.
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+
+    // ---------- Showing the pack ----------
+
+    // Build one card on the page: a clickable card with a back, a front,
+    // and a name label underneath. "index" is its position in the pack.
+    function createCardSlot(entry, index) {
+      // The slot holds the card and its name.
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+
+      // The stage holds the card plus its glowing aura (if it has one).
+      // The aura stays hidden until the card is flipped.
+      const stage = document.createElement("div");
+      stage.className = "card-stage";
+      addAuras(stage, entry);
+      stage.appendChild(createPriceBadge(entry));   // hidden until the card is flipped
+
+      // The card is a button so it can be clicked (or used with the keyboard).
+      const cardButton = document.createElement("button");
+      cardButton.className = "card";
+      cardButton.type = "button";
+
+      // Inner part (the piece that spins), with the back and the front.
+      const inner = document.createElement("div");
+      inner.className = "card-inner";
+
+      const back = document.createElement("div");
+      back.className = "card-face card-back";
+
+      const front = document.createElement("div");
+      front.className = "card-face card-front";
+      const picture = document.createElement("img");
+      picture.src = entry.imageUrl;   // loads in the background, ready for the flip
+      picture.alt = "";               // the name is shown under the card instead
+      front.appendChild(picture);
+
+      inner.appendChild(back);
+      inner.appendChild(front);
+      cardButton.appendChild(inner);
+
+      // The name under the card. It stays invisible until the card is flipped.
+      const nameLabel = document.createElement("p");
+      nameLabel.className = "card-name";
+      nameLabel.textContent = entry.card.name;
+
+      // The set name goes under the name. It also stays invisible until the flip.
+      const setLabel = document.createElement("p");
+      setLabel.className = "card-sub card-set";
+      setLabel.textContent = entry.card.set ? entry.card.set.name : "";
+
+      // A short description for screen readers.
+      function updateLabel() {
+        cardButton.setAttribute(
+          "aria-label",
+          entry.flipped
+            ? entry.card.name + ". Click to see it up close."
+            : "Card " + (index + 1) + ", face down. Click to flip."
+        );
+      }
+
+      // Show the card as flipped (used for cards flipped earlier too).
+      function showFlipped() {
+        cardButton.classList.add("flipped");
+        stage.classList.add("flipped");     // this makes the aura fade in
+        nameLabel.classList.add("visible");
+        setLabel.classList.add("visible");
+      }
+
+      // If this card was already flipped (like after a refresh), show it that way.
+      if (entry.flipped) {
+        showFlipped();
+      }
+      updateLabel();
+
+      // The on-screen part of flipping, kept so "Reveal all" can use it too.
+      packFlippers[index] = function () {
+        showFlipped();
+        updateLabel();
+      };
+
+      // What happens when you click the card.
+      cardButton.addEventListener("click", function () {
+        if (!entry.flipped) {
+          // First click: flip the card over and remember that.
+          entry.flipped = true;
+          markRevealed(entry);      // the collection now shows this card too
+          packFlippers[index]();
+          savePack();
+          updateRevealButton();
+        } else {
+          // Click on a flipped card: show it big, with its effects.
+          openModal(entry, true);
+        }
+      });
+
+      stage.appendChild(cardButton);
+      slot.appendChild(stage);
+      slot.appendChild(nameLabel);
+      slot.appendChild(setLabel);
+      return slot;
+    }
+
+    // Put every card of the current pack on the page.
+    function renderPack() {
+      // A pack saved by an older version of the page has no variants yet,
+      // so we pick one for each card now and save it.
+      let needsSave = false;
+      currentPack.forEach(function (entry) {
+        if (!entry.variant) {
+          entry.variant = chooseVariant(entry.card);
+          needsSave = true;
+        }
+      });
+      if (needsSave) {
+        savePack();
+      }
+
+      packArea.innerHTML = "";   // clear any old cards first
+      packFlippers = [];
+      currentPack.forEach(function (entry, index) {
+        packArea.appendChild(createCardSlot(entry, index));
+      });
+      hint.hidden = false;       // show the tip about clicking
+      updateRevealButton();
+    }
+
+    // Show the "Reveal all cards" button only while some card is face down.
+    function updateRevealButton() {
+      const anyFaceDown = currentPack.some(function (entry) {
+        return !entry.flipped;
+      });
+      revealButton.hidden = !anyFaceDown;
+    }
+
+    // Flip every card that is still face down, one after another.
+    function revealAll() {
+      let delay = 0;
+      currentPack.forEach(function (entry, index) {
+        if (!entry.flipped) {
+          // Remember the flip right away (and tell the collection),
+          // so a refresh in the middle of the animation loses nothing.
+          entry.flipped = true;
+          markRevealed(entry, true);   // true = don't save yet
+
+          // Do the visible flip a little later than the one before it.
+          setTimeout(packFlippers[index], delay);
+          delay += 150;                // milliseconds between flips
+        }
+      });
+      saveCollection();   // save once, after all the cards are marked
+      savePack();
+      updateRevealButton();
+    }
+
+    revealButton.addEventListener("click", revealAll);
+
+    // Tell the user they're done for today and turn the button off.
+    function showAlreadyOpenedMessage() {
+      statusText.textContent = "You already opened a pack today! Come back tomorrow for a new one.";
+      openButton.disabled = true;
+    }
+
+    // ---------- The collection ----------
+
+    // Load the saved collection. Returns an empty list if there isn't one.
+    function loadCollection() {
+      try {
+        const text = localStorage.getItem(COLLECTION_KEY);
+        if (text) {
+          const saved = JSON.parse(text);
+          if (Array.isArray(saved)) {
+            return saved;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return [];
+    }
+
+    // Save the collection in the browser.
+    function saveCollection() {
+      try {
+        localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // The next pull-order number: one higher than the highest so far.
+    function nextSeq() {
+      let highest = 0;
+      collection.forEach(function (item) {
+        if (item.seq > highest) {
+          highest = item.seq;
+        }
+      });
+      return highest + 1;
+    }
+
+    // Add one card from a pack to the collection.
+    function addEntryToCollection(entry) {
+      const seq = nextSeq();
+      collection.push({
+        id: "c" + seq,
+        seq: seq,
+        card: entry.card,
+        imageUrl: entry.imageUrl,
+        variant: entry.variant,
+        revealed: entry.flipped === true,
+        packDate: entry.packDate || getToday()
+      });
+      // Remember the link, so flipping the card later can update the collection.
+      entry.collectionId = "c" + seq;
+    }
+
+    // Add every card of a new pack to the collection.
+    function addPackToCollection(pack) {
+      pack.forEach(function (entry) {
+        addEntryToCollection(entry);
+      });
+      saveCollection();
+      updateCollectionCount();
+    }
+
+    // Make sure today's saved pack is in the collection. This also catches
+    // a pack opened before the collection page existed.
+    function syncPackToCollection() {
+      let changed = false;
+      currentPack.forEach(function (entry) {
+        if (!entry.collectionId) {
+          if (!entry.variant) {
+            entry.variant = chooseVariant(entry.card);
+          }
+          addEntryToCollection(entry);
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveCollection();
+        savePack();
+      }
+    }
+
+    // When a card is flipped in the pack, mark it as revealed in the collection.
+    // Pass true for skipSave when flipping many cards, then save once yourself.
+    function markRevealed(entry, skipSave) {
+      collection.forEach(function (item) {
+        if (item.id === entry.collectionId) {
+          item.revealed = true;
+        }
+      });
+      if (!skipSave) {
+        saveCollection();
+      }
+    }
+
+    // Update the number on the "Collection" button.
+    function updateCollectionCount() {
+      collectionCount.textContent = collection.length;
+    }
+
+    // Give a rarity name a number, so cards can be sorted by rarity.
+    // Higher means rarer. Names we don't recognize get 0.
+    // (Edit the words below if you want to rank rarities differently.)
+    function getRarityRank(rarity) {
+      if (typeof rarity !== "string") {
+        return 0;
+      }
+      const text = rarity.toLowerCase();
+
+      // The checks go from the rarest down.
+      if (text.includes("special illustration") || text.includes("hyper") ||
+          text.includes("secret") || text.includes("rainbow") ||
+          text.includes("gold")) {
+        return 7;
+      }
+      if (text.includes("ultra") || text.includes("illustration")) {
+        return 6;
+      }
+      if (text.includes("double") || text.includes("ace spec") ||
+          text.includes("amazing") || text.includes("radiant") ||
+          text.includes("shiny") || text.includes("mega")) {
+        return 5;
+      }
+      if (text.includes("holo")) {
+        return 4;
+      }
+      if (text.includes("rare")) {
+        return 3;
+      }
+      if (text.includes("uncommon")) {
+        return 2;
+      }
+      if (text.includes("common")) {
+        return 1;
+      }
+      return 0;
+    }
+
+    // The TCGplayer price of a collection item, or null if it has none.
+    function getItemPrice(item) {
+      const price = getTcgplayerPrice(item.card, item.variant);
+      return typeof price === "number" ? price : null;
+    }
+
+    // Return a sorted copy of the collection. sortKey is the value of the
+    // option picked in the "Sort by" menu.
+    function sortCollection(items, sortKey) {
+      const list = items.slice();   // a copy, so the original order is untouched
+
+      list.sort(function (a, b) {
+        // For "oldest first" we simply compare pull order.
+        if (sortKey === "oldest") {
+          return a.seq - b.seq;
+        }
+        if (sortKey === "newest") {
+          return b.seq - a.seq;
+        }
+
+        // For the other sorts, cards that haven't been flipped yet go last,
+        // since we don't show their details.
+        if (a.revealed !== b.revealed) {
+          return a.revealed ? -1 : 1;
+        }
+
+        let result = 0;
+        if (sortKey === "price-high" || sortKey === "price-low") {
+          const priceA = getItemPrice(a);
+          const priceB = getItemPrice(b);
+          // Cards with no price always go after cards that have one.
+          if (priceA === null && priceB !== null) {
+            return 1;
+          }
+          if (priceA !== null && priceB === null) {
+            return -1;
+          }
+          if (priceA !== null && priceB !== null) {
+            result = sortKey === "price-high" ? priceB - priceA : priceA - priceB;
+          }
+        } else if (sortKey === "rarity-high" || sortKey === "rarity-low") {
+          const rankA = getRarityRank(a.card.rarity);
+          const rankB = getRarityRank(b.card.rarity);
+          result = sortKey === "rarity-high" ? rankB - rankA : rankA - rankB;
+          if (result === 0) {
+            // Same rarity: show the pricier card first.
+            const priceA = getItemPrice(a) === null ? -1 : getItemPrice(a);
+            const priceB = getItemPrice(b) === null ? -1 : getItemPrice(b);
+            result = priceB - priceA;
+          }
+        } else if (sortKey === "name") {
+          result = a.card.name.localeCompare(b.card.name);
+        }
+
+        // If everything else is tied, the newest pull goes first.
+        return result !== 0 ? result : b.seq - a.seq;
+      });
+
+      return list;
+    }
+
+    // Build one card for the collection page. Unlike the pack, cards here
+    // are already face up, except cards you haven't flipped yet.
+    function createCollectionSlot(item) {
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+
+      const stage = document.createElement("div");
+      stage.className = "card-stage";
+
+      const cardButton = document.createElement("button");
+      cardButton.className = "card";
+      cardButton.type = "button";
+
+      const inner = document.createElement("div");
+      inner.className = "card-inner";
+      const back = document.createElement("div");
+      back.className = "card-face card-back";
+      inner.appendChild(back);
+
+      const nameLabel = document.createElement("p");
+      nameLabel.className = "card-name visible";
+
+      if (item.revealed) {
+        // Face up: show the picture, the aura, the price badge, and the details.
+        const front = document.createElement("div");
+        front.className = "card-face card-front";
+        const picture = document.createElement("img");
+        picture.loading = "lazy";      // only load pictures as you scroll to them
+        picture.src = item.imageUrl;
+        picture.alt = item.card.name;
+        front.appendChild(picture);
+        inner.appendChild(front);
+
+        cardButton.classList.add("flipped");
+        stage.classList.add("flipped");
+        // No auras on this page, and the price tag stays plain.
+        stage.appendChild(createPriceBadge(item, true));
+
+        nameLabel.textContent = item.card.name;
+        cardButton.setAttribute("aria-label", item.card.name + ". Click to see it up close.");
+
+        // Click a card to see it enlarged, like in the pack.
+        cardButton.addEventListener("click", function () {
+          openModal(item, false);   // false = no effects on the collection page
+        });
+      } else {
+        // Not flipped yet: keep it a mystery.
+        cardButton.disabled = true;
+        cardButton.setAttribute("aria-label", "A card you haven't flipped yet.");
+        nameLabel.classList.add("muted");
+        nameLabel.textContent = "Not flipped yet";
+      }
+
+      cardButton.appendChild(inner);
+      stage.appendChild(cardButton);
+      slot.appendChild(stage);
+      slot.appendChild(nameLabel);
+
+      // A small line with the rarity and version, for cards that are face up.
+      if (item.revealed) {
+        const sub = document.createElement("p");
+        sub.className = "card-sub";
+        sub.textContent = (item.card.rarity || "Unknown rarity") + " · " + VARIANT_NAMES[item.variant];
+        slot.appendChild(sub);
+      }
+      return slot;
+    }
+
+    // Redraw the whole collection page using the chosen sort order.
+    function renderCollection() {
+      collectionGrid.innerHTML = "";
+
+      if (collection.length === 0) {
+        collectionSummary.textContent = "Your collection is empty. Open a pack to start collecting!";
+        return;
+      }
+
+      sortCollection(collection, sortSelect.value).forEach(function (item) {
+        collectionGrid.appendChild(createCollectionSlot(item));
+      });
+
+      // The summary line: how many cards, and what the flipped ones are worth.
+      let flippedCount = 0;
+      let totalValue = 0;
+      collection.forEach(function (item) {
+        if (item.revealed) {
+          flippedCount++;
+          const price = getItemPrice(item);
+          if (price !== null) {
+            totalValue += price;
+          }
+        }
+      });
+      const unflipped = collection.length - flippedCount;
+
+      let summary = collection.length + (collection.length === 1 ? " card" : " cards");
+      summary += " · Total value " + formatMoney(totalValue, "USD") + " (TCGplayer)";
+      if (unflipped > 0) {
+        summary += " · " + unflipped + " not flipped yet";
+      }
+      collectionSummary.textContent = summary;
+    }
+
+    // Switch between the "Open packs" page and the "Collection" page.
+    function showView(name) {
+      const showingCollection = name === "collection";
+      viewPack.hidden = showingCollection;
+      viewCollection.hidden = !showingCollection;
+      tabPack.classList.toggle("active", !showingCollection);
+      tabCollection.classList.toggle("active", showingCollection);
+
+      // Redraw the collection each time you visit it, so it's always current.
+      if (showingCollection) {
+        renderCollection();
+      }
+    }
+
+    tabPack.addEventListener("click", function () {
+      showView("pack");
+    });
+    tabCollection.addEventListener("click", function () {
+      showView("collection");
+    });
+
+    // Re-sort the collection (and remember the choice) when the menu changes.
+    sortSelect.addEventListener("change", function () {
+      try {
+        localStorage.setItem(SORT_KEY, sortSelect.value);
+      } catch (error) {
+        console.error(error);
+      }
+      renderCollection();
+    });
+
+    // ---------- Opening a pack ----------
+
+    // Everything that happens when you click "Open a pack".
+    async function openPack() {
+      // If you already opened a pack today, bring that pack back instead.
+      const saved = loadSavedPack();
+      if (ONE_PACK_PER_DAY && saved && saved.date === getToday()) {
+        currentPack = saved.pack;
+        renderPack();
+        showAlreadyOpenedMessage();
+        return;
+      }
+
+      // Disable the button so you can't click again while loading.
+      openButton.disabled = true;
+      statusText.textContent = "Opening pack...";
+
+      try {
+        // Step 1: download the list of all cards (only the first time).
+        // The list only has short info for each card: id, name, image.
+        if (allCards === null) {
+          const list = await fetchFromApi(API_URL);
+          // Keep only cards that have a picture.
+          allCards = list.filter(function (card) {
+            return card.image;
+          });
+        }
+
+        // Step 2: fill the pack with cards that have a TCGplayer price.
+        // We pick random cards, look up their details, and throw away any
+        // that have no price. If the pack still isn't full, we go around again.
+        const chosen = [];                // the cards that made it into the pack
+        const triedIds = new Set();       // every card we've already looked at
+        let round = 0;
+
+        while (chosen.length < PACK_SIZE && round < MAX_ROUNDS) {
+          round++;
+
+          // Pick as many new cards as we still need.
+          const briefs = pickRandomCards(PACK_SIZE - chosen.length, triedIds);
+
+          // Ask for each card's full details, all at the same time.
+          // Promise.all waits until every request has finished.
+          const cards = await Promise.all(briefs.map(function (brief) {
+            return fetchFromApi(API_URL + "/" + brief.id);
+          }));
+
+          // Keep only cards that have a price for the version we'll draw.
+          cards.forEach(function (card, i) {
+            triedIds.add(briefs[i].id);
+            const variant = chooseVariantWithPrice(card);
+            if (variant !== null) {
+              chosen.push({ brief: briefs[i], card: card, variant: variant });
+            }
+          });
+        }
+
+        // If we still couldn't fill the pack, stop and show a message.
+        if (chosen.length < PACK_SIZE) {
+          const problem = new Error("Not enough cards with pricing data were found.");
+          problem.userMessage = "Couldn't find enough cards with pricing data. Please try again.";
+          throw problem;
+        }
+
+        // Step 3: build the pack. Every card starts face down (flipped: false).
+        // The picture address is the card's image link plus "/high.png".
+        currentPack = chosen.map(function (item) {
+          return {
+            card: item.card,
+            imageUrl: item.brief.image + "/high.png",
+            flipped: false,
+            variant: item.variant,
+            packDate: getToday()
+          };
+        });
+
+        // Step 4: add the new cards to your collection, show them,
+        // and save the pack so a refresh keeps it.
+        addPackToCollection(currentPack);
+        renderCollection();       // keeps the collection page up to date
+        renderPack();
+        savePack();
+        statusText.textContent = "";
+
+        // Lock the button until tomorrow. We don't show the "already opened"
+        // message here, since this was the first pack of the day. That
+        // message only appears when you come back to the page later.
+        if (ONE_PACK_PER_DAY) {
+          openButton.disabled = true;
+          return;   // "return" stops here, leaving the button turned off
+        }
+      } catch (error) {
+        // If anything above failed, tell the user and log details for debugging.
+        // Use our own message if the error has one, otherwise a general one.
+        statusText.textContent = error.userMessage || "Couldn't open a pack. Please try again.";
+        console.error(error);
+      }
+
+      // Turn the button back on.
+      openButton.disabled = false;
+    }
+
+    // Run openPack whenever the button is clicked.
+    openButton.addEventListener("click", openPack);
+
+    // When the page first loads: load your collection and your sort choice.
+    collection = loadCollection();
+    try {
+      const savedSort = localStorage.getItem(SORT_KEY);
+      // Only use the saved choice if it's still one of the menu options.
+      if (savedSort && sortSelect.querySelector('option[value="' + savedSort + '"]')) {
+        sortSelect.value = savedSort;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    // If you already opened a pack today, bring back that pack
+    // (with your flipped cards) and lock the button.
+    const savedPack = loadSavedPack();
+    if (ONE_PACK_PER_DAY && savedPack && savedPack.date === getToday()) {
+      currentPack = savedPack.pack;
+      syncPackToCollection();   // make sure these cards are in the collection
+      renderPack();
+      showAlreadyOpenedMessage();
+    }
+
+    updateCollectionCount();
+    renderCollection();
+  </script>
+</body>
+</html>
