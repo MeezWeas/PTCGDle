@@ -1,0 +1,591 @@
+{
+ "updated": "2026-11-10",
+ "source": "TCGplayer market prices via tcgcsv.com",
+ "sets": {
+  "30th": {
+   "price": 10.44,
+   "product": "30th Celebration Booster Pack",
+   "group": "ME: 30th Celebration"
+  },
+  "base1": {
+   "price": 897.89,
+   "product": "Base Set Booster Pack [Revised Unlimited Edition]",
+   "group": "Base Set"
+  },
+  "base2": {
+   "price": 327.27,
+   "product": "Jungle Booster Pack [Unlimited Edition]",
+   "group": "Jungle"
+  },
+  "base3": {
+   "price": 339.99,
+   "product": "Fossil Booster Pack [Unlimited Edition]",
+   "group": "Fossil"
+  },
+  "base4": {
+   "price": 459.26,
+   "product": "Base Set 2 Booster Pack",
+   "group": "Base Set 2"
+  },
+  "base5": {
+   "price": 328.87,
+   "product": "Team Rocket Booster Pack [Unlimited Edition]",
+   "group": "Team Rocket"
+  },
+  "bw1": {
+   "price": 187.99,
+   "product": "Black and White Booster Pack",
+   "group": "Black and White"
+  },
+  "bw10": {
+   "price": 275.45,
+   "product": "Plasma Blast Booster Pack",
+   "group": "Plasma Blast"
+  },
+  "bw11": {
+   "price": 392.43,
+   "product": "Legendary Treasures Booster Pack",
+   "group": "Legendary Treasures"
+  },
+  "bw2": {
+   "price": 110.0,
+   "product": "Emerging Powers Booster Pack",
+   "group": "Emerging Powers"
+  },
+  "bw3": {
+   "price": 168.87,
+   "product": "Noble Victories Booster Pack",
+   "group": "Noble Victories"
+  },
+  "bw4": {
+   "price": 383.04,
+   "product": "Next Destinies Booster Pack",
+   "group": "Next Destinies"
+  },
+  "bw5": {
+   "price": 396.63,
+   "product": "Dark Explorers Booster Pack",
+   "group": "Dark Explorers"
+  },
+  "bw8": {
+   "price": 651.13,
+   "product": "Plasma Storm Booster Pack",
+   "group": "Plasma Storm"
+  },
+  "bw9": {
+   "price": 329.09,
+   "product": "Plasma Freeze Booster Pack",
+   "group": "Plasma Freeze"
+  },
+  "cel25": {
+   "price": 27.02,
+   "product": "Celebrations Booster Pack",
+   "group": "Celebrations"
+  },
+  "col1": {
+   "price": 1114.85,
+   "product": "Call of Legends Booster Pack",
+   "group": "Call of Legends"
+  },
+  "dc1": {
+   "price": 428.88,
+   "product": "Double Crisis Booster Pack",
+   "group": "Double Crisis"
+  },
+  "det1": {
+   "price": 24.41,
+   "product": "Detective Pikachu Booster Pack",
+   "group": "Detective Pikachu"
+  },
+  "dp1": {
+   "price": 304.17,
+   "product": "Diamond and Pearl Booster Pack",
+   "group": "Diamond and Pearl"
+  },
+  "dp2": {
+   "price": 339.83,
+   "product": "Mysterious Treasures Booster Pack",
+   "group": "Mysterious Treasures"
+  },
+  "dp3": {
+   "price": 628.19,
+   "product": "Secret Wonders Booster Pack",
+   "group": "Secret Wonders"
+  },
+  "dp4": {
+   "price": 347.35,
+   "product": "Great Encounters Booster Pack",
+   "group": "Great Encounters"
+  },
+  "dp7": {
+   "price": 596.55,
+   "product": "Stormfront Booster Pack",
+   "group": "Stormfront"
+  },
+  "ecard1": {
+   "price": 4800.0,
+   "product": "Expedition Booster Pack",
+   "group": "Expedition"
+  },
+  "ecard2": {
+   "price": 1999.99,
+   "product": "Aquapolis Booster Pack",
+   "group": "Aquapolis"
+  },
+  "ex1": {
+   "price": 799.99,
+   "product": "Ruby and Sapphire Booster Pack",
+   "group": "EX Ruby and Sapphire"
+  },
+  "ex12": {
+   "price": 1600.0,
+   "product": "Legend Maker Booster Pack",
+   "group": "EX Legend Maker"
+  },
+  "ex13": {
+   "price": 1901.99,
+   "product": "Holon Phantoms Booster Pack",
+   "group": "EX Holon Phantoms"
+  },
+  "ex14": {
+   "price": 1649.99,
+   "product": "Crystal Guardians Booster Pack",
+   "group": "EX Crystal Guardians"
+  },
+  "ex15": {
+   "price": 4000.0,
+   "product": "Dragon Frontiers Booster Pack",
+   "group": "EX Dragon Frontiers"
+  },
+  "ex16": {
+   "price": 999.99,
+   "product": "Power Keepers Booster Pack",
+   "group": "EX Power Keepers"
+  },
+  "ex3": {
+   "price": 1125.0,
+   "product": "EX Dragon Booster Pack",
+   "group": "EX Dragon"
+  },
+  "ex4": {
+   "price": 1600.0,
+   "product": "Team Magma vs Team Aqua Booster Pack",
+   "group": "EX Team Magma vs Team Aqua"
+  },
+  "ex5": {
+   "price": 800.0,
+   "product": "Hidden Legends Booster Pack",
+   "group": "EX Hidden Legends"
+  },
+  "ex6": {
+   "price": 1013.3,
+   "product": "FireRed & LeafGreen Booster Pack",
+   "group": "EX FireRed & LeafGreen"
+  },
+  "ex8": {
+   "price": 5000.0,
+   "product": "Deoxys Booster Pack",
+   "group": "EX Deoxys"
+  },
+  "ex9": {
+   "price": 4000.0,
+   "product": "Emerald Booster Pack",
+   "group": "EX Emerald"
+  },
+  "g1": {
+   "price": 334.95,
+   "product": "Generations Booster Pack",
+   "group": "Generations"
+  },
+  "gym1": {
+   "price": 279.08,
+   "product": "Gym Heroes Booster Pack [Unlimited Edition]",
+   "group": "Gym Heroes"
+  },
+  "gym2": {
+   "price": 419.99,
+   "product": "Gym Challenge Booster Pack [Unlimited Edition]",
+   "group": "Gym Challenge"
+  },
+  "hgss1": {
+   "price": 449.99,
+   "product": "HeartGold SoulSilver Booster Pack",
+   "group": "HeartGold SoulSilver"
+  },
+  "hgss3": {
+   "price": 800.0,
+   "product": "Undaunted Booster Pack",
+   "group": "Undaunted"
+  },
+  "me01": {
+   "price": 9.41,
+   "product": "Mega Evolution Booster Pack",
+   "group": "ME01: Mega Evolution"
+  },
+  "me02": {
+   "price": 11.9,
+   "product": "Phantasmal Flames Booster Pack",
+   "group": "ME02: Phantasmal Flames"
+  },
+  "me02.5": {
+   "price": 10.5,
+   "product": "Ascended Heroes Booster Pack",
+   "group": "ME: Ascended Heroes"
+  },
+  "me03": {
+   "price": 5.56,
+   "product": "Perfect Order Booster Pack",
+   "group": "ME03: Perfect Order"
+  },
+  "me04": {
+   "price": 5.48,
+   "product": "Chaos Rising Booster Pack",
+   "group": "ME04: Chaos Rising"
+  },
+  "me05": {
+   "price": 5.47,
+   "product": "Pitch Black Booster Pack",
+   "group": "ME05: Pitch Black"
+  },
+  "me06": {
+   "price": 6.99,
+   "product": "Delta Reign Booster Pack",
+   "group": "ME06: Delta Reign"
+  },
+  "mee": {
+   "price": 9.41,
+   "product": "Mega Evolution Booster Pack",
+   "group": "ME01: Mega Evolution"
+  },
+  "neo1": {
+   "price": 631.99,
+   "product": "Neo Genesis Booster Pack [Unlimited Edition]",
+   "group": "Neo Genesis"
+  },
+  "neo2": {
+   "price": 1500.0,
+   "product": "Neo Discovery Booster Pack [1st Edition]",
+   "group": "Neo Discovery"
+  },
+  "neo3": {
+   "price": 945.0,
+   "product": "Neo Revelation Booster Pack [Unlimited Edition]",
+   "group": "Neo Revelation"
+  },
+  "neo4": {
+   "price": 1699.0,
+   "product": "Neo Destiny Booster Pack [Unlimited Edition]",
+   "group": "Neo Destiny"
+  },
+  "pl1": {
+   "price": 389.74,
+   "product": "Platinum Booster Pack",
+   "group": "Platinum"
+  },
+  "pl2": {
+   "price": 999.99,
+   "product": "Rising Rivals Booster Pack",
+   "group": "Rising Rivals"
+  },
+  "pl3": {
+   "price": 737.49,
+   "product": "Supreme Victors Booster Pack",
+   "group": "Supreme Victors"
+  },
+  "pl4": {
+   "price": 568.06,
+   "product": "Arceus Booster Pack",
+   "group": "Arceus"
+  },
+  "sm10": {
+   "price": 67.09,
+   "product": "Unbroken Bonds Booster Pack",
+   "group": "SM - Unbroken Bonds"
+  },
+  "sm11": {
+   "price": 81.39,
+   "product": "Unified Minds Booster Pack",
+   "group": "SM - Unified Minds"
+  },
+  "sm115": {
+   "price": 46.3,
+   "product": "Hidden Fates Booster Pack",
+   "group": "Hidden Fates"
+  },
+  "sm12": {
+   "price": 71.95,
+   "product": "Cosmic Eclipse Booster Pack",
+   "group": "SM - Cosmic Eclipse"
+  },
+  "sm2": {
+   "price": 38.73,
+   "product": "Guardians Rising Booster Pack",
+   "group": "SM - Guardians Rising"
+  },
+  "sm3": {
+   "price": 30.88,
+   "product": "Burning Shadows Booster Pack",
+   "group": "SM - Burning Shadows"
+  },
+  "sm3.5": {
+   "price": 112.95,
+   "product": "Shining Legends Booster Pack",
+   "group": "Shining Legends"
+  },
+  "sm4": {
+   "price": 18.93,
+   "product": "Crimson Invasion Booster Pack",
+   "group": "SM - Crimson Invasion"
+  },
+  "sm5": {
+   "price": 51.14,
+   "product": "Ultra Prism Booster Pack",
+   "group": "SM - Ultra Prism"
+  },
+  "sm6": {
+   "price": 51.94,
+   "product": "Forbidden Light Booster Pack",
+   "group": "SM - Forbidden Light"
+  },
+  "sm7": {
+   "price": 72.47,
+   "product": "Celestial Storm Booster Pack",
+   "group": "SM - Celestial Storm"
+  },
+  "sm7.5": {
+   "price": 116.56,
+   "product": "Dragon Majesty Booster Pack",
+   "group": "Dragon Majesty"
+  },
+  "sm8": {
+   "price": 55.13,
+   "product": "Lost Thunder Booster Pack",
+   "group": "SM - Lost Thunder"
+  },
+  "sm9": {
+   "price": 51.47,
+   "product": "Team Up - Mini Booster Pack",
+   "group": "SM - Team Up"
+  },
+  "sv01": {
+   "price": 8.88,
+   "product": "Scarlet & Violet Booster Pack",
+   "group": "SV01: Scarlet & Violet Base Set"
+  },
+  "sv02": {
+   "price": 15.78,
+   "product": "Paldea Evolved Booster Pack",
+   "group": "SV02: Paldea Evolved"
+  },
+  "sv03": {
+   "price": 12.66,
+   "product": "Obsidian Flames Booster Pack",
+   "group": "SV03: Obsidian Flames"
+  },
+  "sv03.5": {
+   "price": 26.85,
+   "product": "151 Booster Pack",
+   "group": "SV: Scarlet & Violet 151"
+  },
+  "sv04": {
+   "price": 8.76,
+   "product": "Paradox Rift Booster Pack",
+   "group": "SV04: Paradox Rift"
+  },
+  "sv04.5": {
+   "price": 24.51,
+   "product": "Paldean Fates Booster Pack",
+   "group": "SV: Paldean Fates"
+  },
+  "sv05": {
+   "price": 10.52,
+   "product": "Temporal Forces Booster Pack",
+   "group": "SV05: Temporal Forces"
+  },
+  "sv06": {
+   "price": 9.26,
+   "product": "Twilight Masquerade Booster Pack",
+   "group": "SV06: Twilight Masquerade"
+  },
+  "sv06.5": {
+   "price": 12.41,
+   "product": "Shrouded Fable Booster Pack",
+   "group": "SV: Shrouded Fable"
+  },
+  "sv07": {
+   "price": 10.59,
+   "product": "Stellar Crown Booster Pack",
+   "group": "SV07: Stellar Crown"
+  },
+  "sv08": {
+   "price": 8.85,
+   "product": "Surging Sparks Booster Pack",
+   "group": "SV08: Surging Sparks"
+  },
+  "sv08.5": {
+   "price": 13.6,
+   "product": "Prismatic Evolutions Booster Pack",
+   "group": "SV: Prismatic Evolutions"
+  },
+  "sv09": {
+   "price": 6.42,
+   "product": "Journey Together Booster Pack",
+   "group": "SV09: Journey Together"
+  },
+  "sv10": {
+   "price": 8.59,
+   "product": "Destined Rivals Booster Pack",
+   "group": "SV10: Destined Rivals"
+  },
+  "sv10.5b": {
+   "price": 13.72,
+   "product": "Black Bolt Booster Pack",
+   "group": "SV: Black Bolt"
+  },
+  "sv10.5w": {
+   "price": 13.24,
+   "product": "White Flare Booster Pack",
+   "group": "SV: White Flare"
+  },
+  "swsh1": {
+   "price": 12.25,
+   "product": "Sword & Shield Booster Pack",
+   "group": "SWSH01: Sword & Shield Base Set"
+  },
+  "swsh10": {
+   "price": 10.53,
+   "product": "Astral Radiance Booster Pack",
+   "group": "SWSH10: Astral Radiance"
+  },
+  "swsh10.5": {
+   "price": 16.22,
+   "product": "Pokemon GO Booster Pack",
+   "group": "Pokemon GO"
+  },
+  "swsh11": {
+   "price": 17.29,
+   "product": "Lost Origin Booster Pack",
+   "group": "SWSH11: Lost Origin"
+  },
+  "swsh12": {
+   "price": 15.03,
+   "product": "Silver Tempest Booster Pack",
+   "group": "SWSH12: Silver Tempest"
+  },
+  "swsh12.5": {
+   "price": 25.72,
+   "product": "Crown Zenith Booster Pack",
+   "group": "SWSH: Crown Zenith"
+  },
+  "swsh2": {
+   "price": 11.37,
+   "product": "Rebel Clash Booster Pack",
+   "group": "SWSH02: Rebel Clash"
+  },
+  "swsh3": {
+   "price": 10.34,
+   "product": "Darkness Ablaze Booster Pack",
+   "group": "SWSH03: Darkness Ablaze"
+  },
+  "swsh3.5": {
+   "price": 20.0,
+   "product": "Champion's Path Booster Pack",
+   "group": "Champion's Path"
+  },
+  "swsh4": {
+   "price": 10.43,
+   "product": "Vivid Voltage Booster Pack",
+   "group": "SWSH04: Vivid Voltage"
+  },
+  "swsh4.5": {
+   "price": 18.19,
+   "product": "Shining Fates Booster Pack",
+   "group": "Shining Fates"
+  },
+  "swsh5": {
+   "price": 9.84,
+   "product": "Battle Styles Booster Pack",
+   "group": "SWSH05: Battle Styles"
+  },
+  "swsh6": {
+   "price": 12.14,
+   "product": "Chilling Reign Booster Pack",
+   "group": "SWSH06: Chilling Reign"
+  },
+  "swsh7": {
+   "price": 42.59,
+   "product": "Evolving Skies Booster Pack",
+   "group": "SWSH07: Evolving Skies"
+  },
+  "swsh8": {
+   "price": 19.59,
+   "product": "Fusion Strike Booster Pack",
+   "group": "SWSH08: Fusion Strike"
+  },
+  "swsh9": {
+   "price": 14.99,
+   "product": "Brilliant Stars Booster Pack",
+   "group": "SWSH09: Brilliant Stars"
+  },
+  "xy1": {
+   "price": 136.67,
+   "product": "XY Booster Pack",
+   "group": "XY Base Set"
+  },
+  "xy10": {
+   "price": 46.28,
+   "product": "XY Fates Collide Booster Pack",
+   "group": "XY - Fates Collide"
+  },
+  "xy11": {
+   "price": 33.65,
+   "product": "Steam Siege Booster Pack",
+   "group": "XY - Steam Siege"
+  },
+  "xy12": {
+   "price": 71.48,
+   "product": "Evolutions Booster Pack",
+   "group": "XY - Evolutions"
+  },
+  "xy2": {
+   "price": 160.96,
+   "product": "Flashfire Booster Pack",
+   "group": "XY - Flashfire"
+  },
+  "xy3": {
+   "price": 81.36,
+   "product": "Furious Fists Booster Pack",
+   "group": "XY - Furious Fists"
+  },
+  "xy4": {
+   "price": 229.72,
+   "product": "XY Phantom Forces Booster Pack",
+   "group": "XY - Phantom Forces"
+  },
+  "xy5": {
+   "price": 96.69,
+   "product": "XY Primal Clash Booster Pack",
+   "group": "XY - Primal Clash"
+  },
+  "xy6": {
+   "price": 88.61,
+   "product": "Roaring Skies Booster Pack",
+   "group": "XY - Roaring Skies"
+  },
+  "xy7": {
+   "price": 150.7,
+   "product": "XY Ancient Origins Booster Pack",
+   "group": "XY - Ancient Origins"
+  },
+  "xy8": {
+   "price": 67.55,
+   "product": "XY BREAKthrough Booster Pack",
+   "group": "XY - BREAKthrough"
+  },
+  "xy9": {
+   "price": 51.71,
+   "product": "XY BREAKpoint Booster Pack",
+   "group": "XY - BREAKpoint"
+  }
+ }
+}
