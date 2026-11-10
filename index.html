@@ -18,7 +18,57 @@
       font-family: inherit;
     }
     /* ---------- The buttons that switch between the two pages ---------- */
+    #sets-toolbar { margin-bottom: 8px; }
+    #sets-toolbar label { margin-right: 8px; }
+    #sets-sort {
+      font-size: 1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+    }
+    #sets-summary { margin: 8px 0 20px; opacity: 0.85; }
+    #sets-list { max-width: 900px; margin: 0 auto; text-align: left; }
+    .set-row {
+      margin-bottom: 12px;
+      border: 2px solid #3a3a66;
+      border-radius: 12px;
+      background: #26264a;
+    }
+    .set-row.complete { border-color: #ffcb05; box-shadow: 0 0 12px rgba(255, 203, 5, 0.3); }
+    .set-row > summary {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .set-row > summary::-webkit-details-marker { display: none; }
+    .set-logo {
+      flex: none;
+      width: 90px;
+      height: 44px;
+      object-fit: contain;
+    }
+    .set-logo-blank { flex: none; width: 90px; }
+    .set-info { flex: 1; min-width: 0; }
+    .set-name { font-weight: 700; }
+    .set-meta { font-size: 0.8rem; opacity: 0.75; margin-top: 2px; }
+    .set-bar { height: 10px; margin-top: 8px; border-radius: 999px; background: #1b1b2f; overflow: hidden; }
+    .set-bar-fill { height: 100%; background: #ffcb05; }
+    .set-percent { flex: none; font-size: 1.2rem; font-weight: 800; min-width: 3.5em; text-align: right; }
+    .set-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 4px 14px 14px;
+    }
+    .set-card { width: 90px; font-size: 0.7rem; text-align: center; }
+    .set-card img { width: 100%; border-radius: 6px; display: block; }
     #tabs {
+      flex-wrap: wrap;
       display: flex;
       justify-content: center;
       gap: 8px;
@@ -58,6 +108,7 @@
     .summary-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0; }
     .summary-chip { padding: 4px 10px; border: 2px solid #3a3a66; border-radius: 999px; font-size: 0.8rem; }
     #achievement-summary { margin: 0 0 16px; opacity: 0.85; }
+    .ach-note { margin: -8px 0 16px; font-size: 0.85rem; opacity: 0.65; }
     #achievement-tools { margin: 0 0 20px; }
     #achievement-tools input {
       font-size: 1rem;
@@ -576,6 +627,7 @@
     <button class="tab-button active" id="tab-pack" type="button">Open packs</button>
     <button class="tab-button" id="tab-collection" type="button">Collection (<span id="collection-count">0</span>)</button>
     <button class="tab-button" id="tab-achievements" type="button">Achievements (<span id="achievement-count">0</span>)</button>
+    <button class="tab-button" id="tab-sets" type="button">Master Set Collection (<span id="set-count">0</span>)</button>
 
   </nav>
 
@@ -626,12 +678,32 @@
     <!-- A line like "12 achievements unlocked · 340 points". -->
     <p id="achievement-summary"></p>
 
+    <p class="ach-note">Achievements are earned by a single pack's cards, so every pack can earn them again.</p>
+
     <div id="achievement-tools">
       <input id="achievement-search" type="search" placeholder="Search your achievements">
     </div>
 
     <!-- The script puts the earned achievements in here. -->
     <div id="achievement-list"></div>
+  </section>
+
+  <!-- PAGE 4: progress toward completing each set you have cards from. -->
+  <section id="view-sets" hidden>
+    <div id="sets-toolbar">
+      <label for="sets-sort">Sort by</label>
+      <select id="sets-sort">
+        <option value="complete">Most complete</option>
+        <option value="remaining">Fewest cards left</option>
+        <option value="newest">Newest set</option>
+        <option value="oldest">Oldest set</option>
+        <option value="name">Name: A to Z</option>
+      </select>
+    </div>
+    <!-- A line like "4 sets started · 1 complete". -->
+    <p id="sets-summary"></p>
+    <!-- The script puts one row per set in here. -->
+    <div id="sets-list"></div>
   </section>
 
   <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
@@ -702,6 +774,12 @@
     const achievementSummary = document.getElementById("achievement-summary");
     const achievementList = document.getElementById("achievement-list");
     const achievementSearchBox = document.getElementById("achievement-search");
+    const tabSets = document.getElementById("tab-sets");
+    const setCount = document.getElementById("set-count");
+    const viewSets = document.getElementById("view-sets");
+    const setsSort = document.getElementById("sets-sort");
+    const setsSummary = document.getElementById("sets-summary");
+    const setsList = document.getElementById("sets-list");
     const modal = document.getElementById("modal");
     const modalClose = document.getElementById("modal-close");
     const modalStage = document.getElementById("modal-stage");
@@ -1610,7 +1688,7 @@
 
       let summary = collection.length + (collection.length === 1 ? " card" : " cards");
       summary += " · Total value " + formatMoney(totalValue, "USD") + " (TCGplayer)";
-      summary += " · " + fmt(sumPoints(earnedAchievements(collection))) + " points";
+      summary += " · " + fmt(getTotals().points) + " points";
       if (unflipped > 0) {
         summary += " · " + unflipped + " not flipped yet";
       }
@@ -1622,9 +1700,11 @@
       viewPack.hidden = name !== "pack";
       viewCollection.hidden = name !== "collection";
       viewAchievements.hidden = name !== "achievements";
+      viewSets.hidden = name !== "sets";
       tabPack.classList.toggle("active", name === "pack");
       tabCollection.classList.toggle("active", name === "collection");
       tabAchievements.classList.toggle("active", name === "achievements");
+      tabSets.classList.toggle("active", name === "sets");
 
       // Redraw a page each time you visit it, so it's always current.
       if (name === "collection") {
@@ -1632,6 +1712,9 @@
       }
       if (name === "achievements") {
         renderAchievements();
+      }
+      if (name === "sets") {
+        renderSets();
       }
     }
 
@@ -1643,6 +1726,9 @@
     });
     tabAchievements.addEventListener("click", function () {
       showView("achievements");
+    });
+    tabSets.addEventListener("click", function () {
+      showView("sets");
     });
 
     // Re-sort the collection (and remember the choice) when the menu changes.
@@ -2671,12 +2757,47 @@
       });
     })();
 
+    // ----- Keep only achievements a single pack can earn -----
+    // Every achievement is judged on one pack's cards by themselves. So we
+    // drop the ones about your whole collection (cards owned, packs opened,
+    // streaks, collection value) and any that need more cards than a pack holds.
+    (function keepPackAchievements() {
+      const dropCategories = ["Collection", "Habits"];
+      const dropPrefixes = ["collvalue_", "silly_"];
+      // Thresholds (not card counts): HP, and total HP in a pack.
+      const thresholdPrefixes = ["hp_", "packhp_"];
+
+      function keep(a) {
+        if (dropCategories.indexOf(a.category) !== -1) { return false; }
+        if (dropPrefixes.some(function (prefix) { return a.id.indexOf(prefix) === 0; })) { return false; }
+        // "Open packs on 5 different Mondays" needs many packs.
+        if ((a.id.indexOf("weekday_") === 0 || a.id.indexOf("month_") === 0) && a.target > 1) { return false; }
+        if (a.money) { return true; }
+        if (thresholdPrefixes.some(function (prefix) { return a.id.indexOf(prefix) === 0; })) { return true; }
+        return a.target <= PACK_SIZE;   // a pack only has 7 cards
+      }
+
+      const kept = ACHIEVEMENTS.filter(keep);
+      ACHIEVEMENTS.length = 0;
+      kept.forEach(function (a) { ACHIEVEMENTS.push(a); });
+      Object.keys(ACHIEVEMENT_BY_ID).forEach(function (id) {
+        if (kept.indexOf(ACHIEVEMENT_BY_ID[id]) === -1) {
+          delete ACHIEVEMENT_BY_ID[id];
+        }
+      });
+    })();
+
     // ----- Release years of sets -----
     // A card doesn't say when it was released, but its set does. We look each
     // set up once and remember the year in the browser.
     const SETS_URL = "https://api.tcgdex.net/v2/en/sets";
     const SET_YEARS_KEY = "setYears";
     let setYears = {};   // { setId: year }
+
+    // More facts about each set, for the Master Set Collection page:
+    // { setId: { total: number of cards in the set, date: "yyyy-mm-dd" } }
+    const SET_META_KEY = "setMeta";
+    let setMeta = {};
 
     function loadSetYears() {
       try {
@@ -2693,9 +2814,25 @@
       return {};
     }
 
+    function loadSetMeta() {
+      try {
+        const text = localStorage.getItem(SET_META_KEY);
+        if (text) {
+          const saved = JSON.parse(text);
+          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+            return saved;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return {};
+    }
+
     function saveSetYears() {
       try {
         localStorage.setItem(SET_YEARS_KEY, JSON.stringify(setYears));
+        localStorage.setItem(SET_META_KEY, JSON.stringify(setMeta));
       } catch (error) {
         console.error(error);
       }
@@ -2707,7 +2844,7 @@
     async function fetchMissingSetYears(setIds) {
       const missing = [];
       setIds.forEach(function (id) {
-        if (id && !setYears[id] && missing.indexOf(id) === -1) {
+        if (id && (!setYears[id] || !setMeta[id]) && missing.indexOf(id) === -1) {
           missing.push(id);
         }
       });
@@ -2722,6 +2859,13 @@
           const year = parseInt(String(set.releaseDate).slice(0, 4), 10);
           if (year >= 1990 && year <= 2100) {
             setYears[id] = year;
+            learned = true;
+          }
+          // How many cards the set has (the "official" count leaves out secret rares).
+          const counts = set.cardCount || {};
+          const total = counts.total || (Array.isArray(set.cards) ? set.cards.length : 0) || counts.official;
+          if (total > 0) {
+            setMeta[id] = { total: total, date: String(set.releaseDate || "") };
             learned = true;
           }
         } catch (error) {
@@ -2742,7 +2886,10 @@
       });
       const learned = await fetchMissingSetYears(ids);
       if (learned) {
-        renderCollection();       // total points can change once years are known
+        renderCollection();
+        if (!viewSets.hidden) {
+          renderSets();
+        }       // total points can change once years are known
         updatePackSummary(0);
       }
     }
@@ -3159,21 +3306,70 @@
       return total;
     }
 
-    // Nothing about achievements is saved. Points are worked out from your
-    // collection each time. A pack's points are the achievements your
-    // collection satisfies now that it didn't satisfy before the pack.
+    // Nothing about achievements is saved. Each pack is judged by itself:
+    // its achievements are whatever its own cards satisfy, and a later pack
+    // can earn the same achievement again.
+
+    // Group the collection into its packs. Older cards without a pack id
+    // are grouped by the day they were opened.
+    function groupByPack(items) {
+      const groups = {};
+      items.forEach(function (item) {
+        const key = item.packId || item.packDate;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(item);
+      });
+      return groups;
+    }
+
+    // Working out a pack's achievements is slow-ish, so remember the answers.
+    const packResultCache = {};
+
+    // The achievements one pack earned (judged on its own cards).
+    function achievementsForPack(items) {
+      const key = (items[0].packId || items[0].packDate) + "|" + items.length + "|" +
+        items.filter(function (item) { return item.revealed; }).length + "|" +
+        Object.keys(setYears).length;
+      if (!packResultCache[key]) {
+        packResultCache[key] = earnedAchievements(items);
+      }
+      return packResultCache[key];
+    }
+
+    // The points a pack earned: its achievements added up.
     function getPackAchievements() {
       if (currentPack.length === 0) {
         return [];
       }
       const packId = currentPack[0].packId;
-      const before = collection.filter(function (item) {
-        return item.packId !== packId;
+      const items = collection.filter(function (item) {
+        return item.packId === packId;
       });
-      const had = new Set(earnedAchievements(before).map(function (a) { return a.id; }));
-      return earnedAchievements(collection).filter(function (achievement) {
-        return !had.has(achievement.id);
+      return items.length > 0 ? achievementsForPack(items) : [];
+    }
+
+    // Everything you've earned across all packs: each distinct achievement
+    // once ("list"), and the points of every pack added together ("points").
+    function getTotals() {
+      const groups = groupByPack(collection);
+      const seen = {};
+      const list = [];
+      let points = 0;
+      Object.keys(groups).forEach(function (key) {
+        if (!groups[key].some(function (item) { return item.revealed; })) {
+          return;   // a pack with nothing flipped has earned nothing yet
+        }
+        achievementsForPack(groups[key]).forEach(function (achievement) {
+          points += achievement.points;
+          if (!seen[achievement.id]) {
+            seen[achievement.id] = true;
+            list.push(achievement);
+          }
+        });
       });
+      return { list: list, points: points };
     }
 
     // ----- The pack summary (shown under the pack after every flip) -----
@@ -3254,11 +3450,161 @@
       packSummary.hidden = false;
     }
 
+    // ----- The Master Set Collection page -----
+
+    // For each set you have flipped cards from: which different cards you own.
+    // (Sets you have nothing from are never listed.)
+    function getSetProgress() {
+      const sets = {};
+      collection.forEach(function (item) {
+        if (!item.revealed || !item.card.set || !item.card.set.id) {
+          return;
+        }
+        const set = item.card.set;
+        if (!sets[set.id]) {
+          sets[set.id] = { id: set.id, name: set.name, logo: set.logo, owned: {} };
+        }
+        sets[set.id].owned[item.card.id] = item;   // the same card twice counts once
+      });
+
+      return Object.keys(sets).map(function (id) {
+        const entry = sets[id];
+        const meta = setMeta[id];
+        entry.ownedCount = Object.keys(entry.owned).length;
+        entry.total = meta ? meta.total : null;       // null if we couldn't look it up
+        entry.date = meta ? meta.date : "";
+        entry.fraction = entry.total ? Math.min(entry.ownedCount / entry.total, 1) : 0;
+        return entry;
+      });
+    }
+
+    // Update the number on the "Master Set Collection" button.
+    function updateSetsTab() {
+      setCount.textContent = getSetProgress().length;
+      if (!viewSets.hidden) {
+        renderSets();
+      }
+    }
+
+    // Draw one row per set, with a progress bar. Click a row to see your cards.
+    function renderSets() {
+      const sets = getSetProgress();
+      setsList.innerHTML = "";
+
+      if (sets.length === 0) {
+        setsSummary.textContent = "No sets yet. Open a pack and flip some cards!";
+        return;
+      }
+
+      const complete = sets.filter(function (s) { return s.total && s.ownedCount >= s.total; }).length;
+      setsSummary.textContent = sets.length + (sets.length === 1 ? " set" : " sets") + " started · " +
+        complete + " complete";
+
+      const sortKey = setsSort.value;
+      sets.sort(function (a, b) {
+        if (sortKey === "name") { return a.name.localeCompare(b.name); }
+        if (sortKey === "newest") { return b.date.localeCompare(a.date) || a.name.localeCompare(b.name); }
+        if (sortKey === "oldest") {
+          // Sets with an unknown date go to the end.
+          if (!a.date !== !b.date) { return a.date ? -1 : 1; }
+          return a.date.localeCompare(b.date) || a.name.localeCompare(b.name);
+        }
+        if (sortKey === "remaining") {
+          const left = function (s) { return s.total ? s.total - s.ownedCount : Infinity; };
+          return left(a) - left(b) || a.name.localeCompare(b.name);
+        }
+        return b.fraction - a.fraction || b.ownedCount - a.ownedCount || a.name.localeCompare(b.name);
+      });
+
+      sets.forEach(function (s) {
+        const isComplete = s.total && s.ownedCount >= s.total;
+        const row = document.createElement("details");
+        row.className = "set-row" + (isComplete ? " complete" : "");
+
+        const head = document.createElement("summary");
+        if (s.logo) {
+          const logo = document.createElement("img");
+          logo.className = "set-logo";
+          logo.src = s.logo + ".png";
+          logo.alt = "";
+          logo.loading = "lazy";
+          logo.addEventListener("error", function () { logo.style.visibility = "hidden"; });
+          head.appendChild(logo);
+        } else {
+          const blank = document.createElement("div");
+          blank.className = "set-logo-blank";
+          head.appendChild(blank);
+        }
+
+        const info = document.createElement("div");
+        info.className = "set-info";
+        const name = document.createElement("div");
+        name.className = "set-name";
+        name.textContent = s.name + (isComplete ? " ✓ Complete!" : "");
+        const meta = document.createElement("div");
+        meta.className = "set-meta";
+        meta.textContent = s.total
+          ? s.ownedCount + " of " + s.total + " cards" + (s.date ? " · Released " + s.date : "")
+          : s.ownedCount + (s.ownedCount === 1 ? " card" : " cards") + " (set size not loaded yet)";
+        info.appendChild(name);
+        info.appendChild(meta);
+        if (s.total) {
+          const bar = document.createElement("div");
+          bar.className = "set-bar";
+          const fill = document.createElement("div");
+          fill.className = "set-bar-fill";
+          fill.style.width = (s.fraction * 100) + "%";
+          bar.appendChild(fill);
+          info.appendChild(bar);
+        }
+        head.appendChild(info);
+
+        if (s.total) {
+          const percent = document.createElement("div");
+          percent.className = "set-percent";
+          const value = s.fraction * 100;
+          // Show a decimal for small values, so 1 card of 200 isn't shown as 1%.
+          percent.textContent = (value >= 10 || value === 0 ? Math.round(value) : value.toFixed(1)) + "%";
+          head.appendChild(percent);
+        }
+        row.appendChild(head);
+
+        // The cards you own, in card-number order. Built when the row is opened.
+        row.addEventListener("toggle", function () {
+          if (!row.open || row.querySelector(".set-cards")) { return; }
+          const grid = document.createElement("div");
+          grid.className = "set-cards";
+          Object.keys(s.owned).map(function (id) { return s.owned[id]; })
+            .sort(function (a, b) {
+              return String(a.card.localId).localeCompare(String(b.card.localId), undefined, { numeric: true });
+            })
+            .forEach(function (item) {
+              const cell = document.createElement("div");
+              cell.className = "set-card";
+              const img = document.createElement("img");
+              img.src = item.imageUrl;
+              img.alt = item.card.name;
+              img.loading = "lazy";
+              const label = document.createElement("div");
+              label.textContent = "#" + item.card.localId;
+              cell.appendChild(img);
+              cell.appendChild(label);
+              grid.appendChild(cell);
+            });
+          row.appendChild(grid);
+        });
+        setsList.appendChild(row);
+      });
+    }
+
+    setsSort.addEventListener("change", renderSets);
+
     // ----- The achievements page (only earned achievements are shown) -----
 
     // Update the number on the "Achievements" button.
     function updateAchievementCount() {
-      achievementCount.textContent = earnedAchievements(collection).length;
+      achievementCount.textContent = getTotals().list.length;
+      updateSetsTab();
       if (!viewAchievements.hidden) {
         renderAchievements();
       }
@@ -3268,12 +3614,13 @@
 
     // Draw the page. Achievements you haven't earned are not listed at all.
     function renderAchievements() {
-      const earned = earnedAchievements(collection);
+      const totals = getTotals();
+      const earned = totals.list;
       achievementList.innerHTML = "";
       achievementSummary.textContent = earned.length === 0
         ? "No achievements yet. Open a pack and flip some cards!"
         : fmt(earned.length) + (earned.length === 1 ? " achievement" : " achievements") +
-          " unlocked · " + fmt(sumPoints(earned)) + " points";
+          " unlocked · " + fmt(totals.points) + " points from all your packs";
 
       const search = achievementSearchBox.value.trim().toLowerCase();
       const shown = earned.filter(function (achievement) {
@@ -3500,6 +3847,7 @@
     // Load your earned achievements. Any you've already earned with the cards
     // you have are unlocked quietly, without a pop-up.
     setYears = loadSetYears();
+    setMeta = loadSetMeta();
     try {
       localStorage.removeItem("achievements");   // old saved achievements aren't used any more
     } catch (error) {
