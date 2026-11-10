@@ -1004,7 +1004,7 @@
     // ----- The leaderboards (shared storage on Supabase) -----
     // Fill these in from your Supabase project (Project Settings > API).
     // Leave them empty and the leaderboards are simply switched off.
-    // The anon / publishable key is meant to be public: the database rules protect the data.
+    // The publishable key (or the older "anon" key) is meant to be public: the database rules protect the data.
     // NEVER put the "service_role" or "secret" key here.
     const SUPABASE_URL = "https://sfvndeaoewzenmnvefmz.supabase.co";        // like "https://abcdefghijkl.supabase.co"
     const SUPABASE_ANON_KEY = "sb_publishable_ZIf6AIntLR1o8fXeNXAshA_WxjW_jqj";   // a long key starting with "eyJ" or "sb_publishable_"
@@ -4181,11 +4181,12 @@
         }
       });
       const set = currentPack[0].card.set;
+      const setName = currentPack[0].buySetName || (set && set.name);
       return {
         id: String(currentPack[0].packId || currentPack[0].packDate),
         value: Math.round(value * 100) / 100,
         kind: currentPackBought ? "bought" : "free",
-        setName: set && set.name ? String(set.name).slice(0, 80) : "Unknown set"
+        setName: setName ? String(setName).slice(0, 80) : "Unknown set"
       };
     }
 
@@ -4775,6 +4776,29 @@
       sellItems(items);
     });
 
+    // Some sets have a "subset" (a gallery, vault or collection). Those aren't sold
+    // on their own: their cards are mixed into the main set's packs instead.
+    // Format: [main set name, subset name]
+    const SUBSET_PAIRS = [
+      ["30th Celebration", "30th Classic Collection"],
+      ["Astral Radiance", "Astral Radiance Trainer Gallery"],
+      ["Brilliant Stars", "Brilliant Stars Trainer Gallery"],
+      ["Celebrations", "Celebrations Classic Collection"],
+      ["Crown Zenith", "Crown Zenith Galarian Gallery"],
+      ["Hidden Fates", "Hidden Fates Shiny Vault"],
+      ["Lost Origin", "Lost Origin Trainer Gallery"],
+      ["Shining Fates", "Shining Fates Shiny Vault"],
+      ["Silver Tempest", "Silver Tempest Trainer Gallery"],
+      ["Unseen Forces", "Unseen Forces Unown Collection"]
+    ];
+    const SUBSET_CHANCE = 0.2;   // each card in a bought pack has a 20% chance to come from the subset
+    const subsetOf = {};         // main set id -> subset set id (filled in when the sets load)
+
+    // Compare names ignoring case and punctuation ("Celebrations: Classic Collection").
+    function simpleName(name) {
+      return String(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    }
+
     // Fill the "Set" menu with every set from TCGdex. Done once.
     let shopSetsLoaded = false;
     async function loadShopSets() {
@@ -4785,7 +4809,25 @@
         const sets = await fetchFromApi(SETS_URL);
         sets.sort(function (a, b) { return a.name.localeCompare(b.name); });
         shopSet.innerHTML = "";
+
+        // Find each subset's set id, and leave subsets out of the menu.
+        const idByName = {};
         sets.forEach(function (set) {
+          idByName[simpleName(set.name)] = set.id;
+        });
+        const hiddenIds = {};
+        SUBSET_PAIRS.forEach(function (pair) {
+          const mainId = idByName[simpleName(pair[0])];
+          const subId = idByName[simpleName(pair[1])];
+          if (mainId && subId && mainId !== subId) {
+            subsetOf[mainId] = subId;
+            hiddenIds[subId] = true;
+          }
+        });
+        sets.forEach(function (set) {
+          if (hiddenIds[set.id]) {
+            return;
+          }
           const option = document.createElement("option");
           option.value = set.id;
           const total = set.cardCount && set.cardCount.total ? " (" + set.cardCount.total + " cards)" : "";
@@ -4937,7 +4979,10 @@
       const allFlipped = currentPack.length > 0 && currentPack.every(function (entry) {
         return entry.flipped;
       });
-      const set = currentPack.length > 0 ? currentPack[0].card.set : null;
+      let set = currentPack.length > 0 ? currentPack[0].card.set : null;
+      if (set && currentPack[0].buySetId) {
+        set = { id: currentPack[0].buySetId, name: currentPack[0].buySetName || set.name };
+      }
       if (!currentPackBought || !allFlipped || !set) {
         buyAnother.hidden = true;
         return;
@@ -4988,7 +5033,19 @@
         const list = (set.cards || []).filter(function (card) {
           return card.image;
         });
-        const chosen = await drawPricedCards(list);
+        // A subset's cards get mixed in (if the set has one and it downloads fine).
+        let subList = [];
+        if (subsetOf[setId]) {
+          try {
+            const subset = await getSetDetail(subsetOf[setId]);
+            subList = (subset.cards || []).filter(function (card) {
+              return card.image;
+            });
+          } catch (error) {
+            console.error(error);
+          }
+        }
+        const chosen = await drawPricedCards(list, subList);
         if (chosen.length < PACK_SIZE) {
           const problem = new Error("Not enough cards with pricing data in this set.");
           problem.userMessage = "This set doesn't have enough cards with pricing data to make a pack. You weren't charged.";
@@ -5007,7 +5064,9 @@
             flipped: false,
             variant: item.variant,
             packDate: getToday(),
-            packId: packId
+            packId: packId,
+            buySetId: setId,                                  // the set you bought (a subset card
+            buySetName: set.name || item.card.set.name        // still counts as this set's pack)
           };
         });
         currentPackBought = true;
@@ -5041,11 +5100,34 @@
       buyPack();
     });
 
+    // Pick "count" untried cards: each one from subList with a 20% chance,
+    // otherwise from the main list (falling back to the other if one runs out).
+    function pickMixed(list, subList, count, triedIds) {
+      const pools = [
+        list.filter(function (card) { return !triedIds.has(card.id); }),
+        subList.filter(function (card) { return !triedIds.has(card.id); })
+      ];
+      const picked = [];
+      while (picked.length < count) {
+        let pool = (pools[1].length > 0 && Math.random() < SUBSET_CHANCE) ? 1 : 0;
+        if (pools[pool].length === 0) {
+          pool = 1 - pool;
+        }
+        if (pools[pool].length === 0) {
+          break;
+        }
+        const position = Math.floor(Math.random() * pools[pool].length);
+        picked.push(pools[pool].splice(position, 1)[0]);
+      }
+      return picked;
+    }
+
     // Pick 7 random cards from a list that have a TCGplayer price.
     // We pick random cards, look up their details, and throw away any
     // that have no price. If the pack still isn't full, we go around again.
     // Returns a list of { brief, card, variant } (shorter than a pack if we ran out).
-    async function drawPricedCards(list) {
+    // If subList is given, each card has a SUBSET_CHANCE chance to come from it.
+    async function drawPricedCards(list, subList) {
       const chosen = [];                // the cards that made it into the pack
       const triedIds = new Set();       // every card we've already looked at
       let round = 0;
@@ -5054,7 +5136,7 @@
         round++;
 
         // Pick as many new cards as we still need.
-        const briefs = pickRandomFrom(list, PACK_SIZE - chosen.length, triedIds);
+        const briefs = pickMixed(list, subList || [], PACK_SIZE - chosen.length, triedIds);
         if (briefs.length === 0) {
           break;                        // every card has been tried
         }
