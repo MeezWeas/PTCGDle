@@ -77,6 +77,7 @@
       background: #26264a;
     }
     #lb-name-form { display: flex; flex-wrap: wrap; gap: 8px; }
+    #lb-name-form[hidden] { display: none; }
     #lb-name-input {
       font-size: 1rem;
       padding: 8px 12px;
@@ -105,11 +106,13 @@
     .lb-list li { padding: 4px 0; }
     .lb-list li .lb-score { float: right; font-weight: 700; }
     .lb-list li.me { color: #ffcb05; font-weight: 700; }
+    .lb-list li small { display: block; font-weight: 400; opacity: 0.7; }
     .lb-empty { list-style: none; margin-left: -28px; opacity: 0.7; }
     #buy-another {
       position: relative;
       z-index: 2;
-      margin: 20px 0 0;
+      display: block;
+      margin: 4px auto 12px;
       font-size: 1.05rem;
       padding: 12px 24px;
       border: none;
@@ -119,6 +122,58 @@
       cursor: pointer;
     }
     #buy-another:disabled { opacity: 0.5; cursor: not-allowed; }
+    #buy-another[hidden], #starter-button[hidden], #info-box[hidden] { display: none; }
+    #starter-button {
+      margin-left: 8px;
+      font-size: 1.1rem;
+      padding: 12px 24px;
+      border: 2px solid #ffcb05;
+      border-radius: 8px;
+      background: transparent;
+      color: #ffcb05;
+      cursor: pointer;
+    }
+    #starter-button:disabled { opacity: 0.5; cursor: wait; }
+    #info-box {
+      position: relative;
+      max-width: 640px;
+      margin: 0 auto 20px;
+      padding: 12px 70px 4px 16px;
+      border: 2px solid #3a3a66;
+      border-radius: 12px;
+      background: #1f1f3a;
+      text-align: left;
+    }
+    #info-box p { margin: 6px 0 10px; font-size: 0.92rem; line-height: 1.4; }
+    #info-hide {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      border: 1px solid #3a3a66;
+      border-radius: 999px;
+      background: transparent;
+      color: #c9c9e0;
+      cursor: pointer;
+    }
+    /* A message that slides in at the top right, like "You got 5 free packs!" */
+    .notice {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 30;
+      max-width: 340px;
+      padding: 14px 16px;
+      border: 2px solid #ffcb05;
+      border-radius: 12px;
+      background: #26264a;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      text-align: left;
+      cursor: pointer;
+      animation: toast-in 0.4s ease-out;
+    }
+    .notice strong { display: block; color: #ffcb05; margin-bottom: 4px; }
     .shop-box {
       max-width: 900px;
       margin: 0 auto 24px;
@@ -454,7 +509,7 @@
     /* The NEW / DUPLICATE tag in a card's top corner, shown once it's flipped. */
     .status-tag {
       position: absolute;
-      top: 8px;
+      top: 26px;
       left: 8px;
       z-index: 3;
       padding: 2px 9px;
@@ -755,10 +810,23 @@
 
   <!-- PAGE 1: opening packs. -->
   <section id="view-pack">
+    <!-- How the game works. "Hide" is remembered. -->
+    <div id="info-box" hidden>
+      <button id="info-hide" type="button" aria-label="Hide this box">Hide</button>
+      <strong>How it works</strong>
+      <p>You get <b>5 starter packs</b> when you pick a leaderboard name, plus <b>1 free pack every day</b>.
+        Sell your duplicate cards, and buy specific packs to chase Master Sets, in the
+        <b>Duplicates &amp; Shop</b> tab.</p>
+    </div>
+
     <button id="open-button">Open a pack</button>
+    <button id="starter-button" type="button" hidden></button>
 
     <!-- Messages like "Opening pack..." or errors show up here. -->
     <p id="status"></p>
+
+    <!-- After a bought pack is fully flipped: buy another from the same set. -->
+    <button id="buy-another" type="button" hidden></button>
 
     <!-- A tip that appears once a pack is open. -->
     <p id="hint" hidden>Click a card to flip it, or reveal them all at once. Click a flipped card to see it up close.</p>
@@ -772,8 +840,6 @@
     <!-- Appears once every card is flipped: the points this pack earned. -->
     <div id="pack-summary" hidden></div>
 
-    <!-- After a bought pack is fully flipped: buy another from the same set. -->
-    <button id="buy-another" type="button" hidden></button>
   </section>
 
   <!-- PAGE 2: every card you've ever pulled. -->
@@ -868,7 +934,8 @@
       <button id="lb-refresh" type="button">Refresh</button>
       <p id="lb-status"></p>
       <div class="lb-grid">
-        <div class="shop-box"><h2>Top pack today <small>(UTC day)</small></h2><ol id="lb-packs" class="lb-list"></ol></div>
+        <div class="shop-box"><h2>Top free pack today <small>(UTC day)</small></h2><ol id="lb-packs" class="lb-list"></ol></div>
+        <div class="shop-box"><h2>Top purchased pack today <small>(UTC day)</small></h2><ol id="lb-bought" class="lb-list"></ol></div>
         <div class="shop-box"><h2>Master sets complete</h2><ol id="lb-sets" class="lb-list"></ol></div>
         <div class="shop-box"><h2>Achievement points</h2><ol id="lb-points" class="lb-list"></ol></div>
       </div>
@@ -895,7 +962,7 @@
 
   <!-- The Supabase library, used for the shared leaderboards. "@2" means the newest
        version 2, which understands Supabase's newer "publishable" keys. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- SCRIPT: the code that does the work. -->
   <script>
@@ -934,15 +1001,17 @@
     const MONEY_KEY = "money";
     const DAILY_KEY = "dailyDate";
 
-// ----- The leaderboards (shared storage on Supabase) -----
+    // ----- The leaderboards (shared storage on Supabase) -----
     // Fill these in from your Supabase project (Project Settings > API).
     // Leave them empty and the leaderboards are simply switched off.
     // The anon / publishable key is meant to be public: the database rules protect the data.
     // NEVER put the "service_role" or "secret" key here.
     const SUPABASE_URL = "https://sfvndeaoewzenmnvefmz.supabase.co";        // like "https://abcdefghijkl.supabase.co"
     const SUPABASE_ANON_KEY = "sb_publishable_ZIf6AIntLR1o8fXeNXAshA_WxjW_jqj";   // a long key starting with "eyJ" or "sb_publishable_"
-    // Should packs you bought with money count for "top pack today"? (false = only the free daily pack.)
-    const LEADERBOARD_BOUGHT_PACKS = false;
+    // New players get this many free starter packs when they pick a leaderboard name.
+    const STARTER_PACKS = 5;
+    const STARTER_KEY = "starterPacks";            // how many starter packs you have left
+    const STARTER_GRANTED_KEY = "starterGranted";  // set once you've received them
     // Where we save your display name, what we last sent, and which packs were submitted.
     const NAME_KEY = "playerName";
     const LB_SYNCED_KEY = "lbSynced";
@@ -987,6 +1056,10 @@
     const setsSummary = document.getElementById("sets-summary");
     const setsList = document.getElementById("sets-list");
     const walletBox = document.getElementById("wallet");
+    const starterButton = document.getElementById("starter-button");
+    const infoBox = document.getElementById("info-box");
+    const infoHide = document.getElementById("info-hide");
+    const lbBoughtList = document.getElementById("lb-bought");
     const tabLeaderboard = document.getElementById("tab-leaderboard");
     const viewLeaderboard = document.getElementById("view-leaderboard");
     const lbNameInfo = document.getElementById("lb-name-info");
@@ -1037,6 +1110,12 @@
     // True when the pack on screen was bought in the shop (not the daily pack).
     let currentPackBought = false;
 
+    // True when the pack on screen is one of the free starter packs.
+    let currentPackStarter = false;
+
+    // How many starter packs you have left to open.
+    let starterPacks = 0;
+
     // Your money, in whole cents (so we never get 0.1 + 0.2 style rounding errors).
     let money = 0;
 
@@ -1079,7 +1158,7 @@
     // Save the pack (and which cards are flipped) in the browser.
     function savePack() {
       try {
-        const saved = { date: getToday(), pack: currentPack, bought: currentPackBought };
+        const saved = { date: getToday(), pack: currentPack, bought: currentPackBought, starter: currentPackStarter };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
       } catch (error) {
         console.error(error);
@@ -4085,9 +4164,11 @@
       };
     }
 
-    // The value of the free daily pack, if it's finished and still counts today.
+    // The pack on screen, if it's finished (every card flipped) and was opened
+    // today. Returns { id, value, kind: "free" or "bought", setName }.
+    // Starter packs are not submitted, so everyone competes on the same free pack.
     function getPackToSubmit() {
-      if (currentPack.length < PACK_SIZE || (currentPackBought && !LEADERBOARD_BOUGHT_PACKS) ||
+      if (currentPack.length < PACK_SIZE || currentPackStarter ||
           currentPack[0].packDate !== getToday() ||
           !currentPack.every(function (entry) { return entry.flipped; })) {
         return null;
@@ -4099,7 +4180,13 @@
           value += price;
         }
       });
-      return { id: String(currentPack[0].packId || currentPack[0].packDate), value: Math.round(value * 100) / 100 };
+      const set = currentPack[0].card.set;
+      return {
+        id: String(currentPack[0].packId || currentPack[0].packDate),
+        value: Math.round(value * 100) / 100,
+        kind: currentPackBought ? "bought" : "free",
+        setName: set && set.name ? String(set.name).slice(0, 80) : "Unknown set"
+      };
     }
 
     // Wait a moment, then send our numbers (so a burst of changes is sent once).
@@ -4127,6 +4214,7 @@
         return;
       }
       lbSyncing = true;
+      const pack = getPackToSubmit();   // decided now, before any waiting, in case the pack changes
       try {
         const client = getLbClient();
         const id = await lbUserId();
@@ -4143,11 +4231,12 @@
           writeJson(LB_SYNCED_KEY, { name: name, points: stats.points, masterSets: stats.masterSets });
         }
 
-        const pack = getPackToSubmit();
         const submitted = readJson(LB_PACKS_KEY, []);
         if (pack && submitted.indexOf(pack.id) === -1) {
-          const result = await client.from("daily_packs").insert({ player_id: id, value: pack.value });
-          // 23505 means "already there" (one pack per day), which is fine.
+          const result = pack.kind === "bought"
+            ? await client.from("bought_packs").insert({ player_id: id, value: pack.value, set_name: pack.setName })
+            : await client.from("daily_packs").insert({ player_id: id, value: pack.value });
+          // 23505 means "already there" (one free pack per day), which is fine.
           if (result.error && result.error.code !== "23505") {
             throw result.error;
           }
@@ -4196,6 +4285,11 @@
         throw problem;
       }
       const client = getLbClient();
+      if (!client) {
+        const problem = new Error("not configured");
+        problem.userMessage = "The leaderboards aren't switched on (check SUPABASE_URL and SUPABASE_ANON_KEY, and that the Supabase library loaded).";
+        throw problem;
+      }
       const id = await lbUserId();
       const stats = getLbStats();
       const result = await client.from("players").upsert({
@@ -4216,6 +4310,42 @@
       }
       writeJson(LB_SYNCED_KEY, { name: name, points: stats.points, masterSets: stats.masterSets });
       scheduleLeaderboardSync();   // also sends today's pack, if it's finished
+
+      // The first time you register a name: a welcome gift of starter packs.
+      if (!readJson(STARTER_GRANTED_KEY, false)) {
+        writeJson(STARTER_GRANTED_KEY, true);
+        starterPacks += STARTER_PACKS;
+        writeJson(STARTER_KEY, starterPacks);
+        updateStarterButton();
+        showNotice("Welcome, " + name + "! 🎉", "You got " + STARTER_PACKS + " free starter packs. " +
+          "Open them any time from the Open packs tab, on top of your free pack each day.");
+      }
+    }
+
+    // A message at the top right. Click it to close it; it also closes by itself.
+    function showNotice(title, message) {
+      const notice = document.createElement("div");
+      notice.className = "notice";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const text = document.createElement("div");
+      text.textContent = message;
+      notice.appendChild(heading);
+      notice.appendChild(text);
+      notice.addEventListener("click", function () { notice.remove(); });
+      document.body.appendChild(notice);
+      setTimeout(function () { notice.remove(); }, 12000);
+    }
+
+    // The "Open a starter pack (N left)" button.
+    function updateStarterButton() {
+      starterButton.hidden = starterPacks <= 0;
+      starterButton.textContent = "Open a starter pack (" + starterPacks + " left)";
+    }
+
+    function loadStarterPacks() {
+      const saved = parseInt(readJson(STARTER_KEY, 0), 10);
+      return saved > 0 ? saved : 0;
     }
 
     // Show the name box: either "choose a name" or "playing as ...".
@@ -4225,8 +4355,13 @@
       lbStatus.textContent = "";
 
       if (!lbConfigured()) {
-        lbNameInfo.textContent = "The leaderboards aren't switched on yet. Add your Supabase URL and key near the top of the script " +
-          "(SUPABASE_URL and SUPABASE_ANON_KEY).";
+        if (SUPABASE_URL === "" || SUPABASE_ANON_KEY === "") {
+          lbNameInfo.textContent = "The leaderboards aren't switched on yet. Add your Supabase URL and key near the top of the script " +
+            "(SUPABASE_URL and SUPABASE_ANON_KEY).";
+        } else {
+          lbNameInfo.textContent = "Your Supabase URL and key are set, but the Supabase library didn't load. " +
+            "Try reloading, and check that an ad blocker or firewall isn't blocking cdn.jsdelivr.net.";
+        }
         lbNameForm.hidden = true;
         lbBoards.hidden = true;
         return;
@@ -4236,7 +4371,8 @@
       if (!name || lbRenaming) {
         lbNameInfo.textContent = name
           ? "Playing as " + name + ". Choose a new name:"
-          : "Choose a name to show on the leaderboards. Everyone can see it, so keep it friendly.";
+          : "Choose a name to show on the leaderboards. Everyone can see it, so keep it friendly." +
+            (readJson(STARTER_GRANTED_KEY, false) ? "" : " You'll get " + STARTER_PACKS + " free starter packs for joining!");
         lbNameForm.hidden = false;
         lbNameCancel.hidden = !name;
         lbNameInput.value = name;
@@ -4305,6 +4441,11 @@
         score.className = "lb-score";
         score.textContent = format(row.score);
         item.appendChild(score);
+        if (row.detail) {
+          const detail = document.createElement("small");
+          detail.textContent = row.detail;
+          item.appendChild(detail);
+        }
         list.appendChild(item);
       });
     }
@@ -4322,6 +4463,8 @@
         const results = await Promise.all([
           client.from("daily_packs").select("value, players(name)").eq("pack_date", today)
             .order("value", { ascending: false }).limit(20),
+          client.from("bought_packs").select("value, set_name, players(name)").eq("pack_date", today)
+            .order("value", { ascending: false }).limit(60),
           client.from("players").select("name, master_sets").gte("master_sets", 1)
             .order("master_sets", { ascending: false }).limit(20),
           client.from("players").select("name, points").gte("points", 1)
@@ -4335,10 +4478,21 @@
         fillBoard(lbPacksList, results[0].data.map(function (row) {
           return { name: row.players ? row.players.name : "?", score: row.value };
         }), function (value) { return formatMoney(Number(value), "USD"); });
-        fillBoard(lbSetsList, results[1].data.map(function (row) {
+        // One entry per player: their best purchased pack today.
+        const seen = {};
+        const bestBought = [];
+        results[1].data.forEach(function (row) {
+          const name = row.players ? row.players.name : "?";
+          if (!seen[name] && bestBought.length < 20) {
+            seen[name] = true;
+            bestBought.push({ name: name, score: row.value, detail: row.set_name });
+          }
+        });
+        fillBoard(lbBoughtList, bestBought, function (value) { return formatMoney(Number(value), "USD"); });
+        fillBoard(lbSetsList, results[2].data.map(function (row) {
           return { name: row.name, score: row.master_sets };
         }), function (count) { return String(count); });
-        fillBoard(lbPointsList, results[2].data.map(function (row) {
+        fillBoard(lbPointsList, results[3].data.map(function (row) {
           return { name: row.name, score: row.points };
         }), function (points) { return fmt(Number(points)); });
         lbStatus.textContent = "";
@@ -4857,6 +5011,7 @@
           };
         });
         currentPackBought = true;
+        currentPackStarter = false;
         addPackToCollection(currentPack);
         await fetchMissingSetYears(currentPack.map(function (entry) {
           return entry.card.set ? entry.card.set.id : null;
@@ -4922,9 +5077,14 @@
     }
 
     // Everything that happens when you click "Open a pack".
-    async function openPack() {
-      // One free pack per day.
-      if (ONE_PACK_PER_DAY && dailyOpenedToday()) {
+    // "starter" is true when opening one of the free starter packs instead of the daily pack.
+    async function openPack(starter) {
+      if (starter) {
+        if (starterPacks <= 0) {
+          return;
+        }
+      } else if (ONE_PACK_PER_DAY && dailyOpenedToday()) {
+        // One free pack per day.
         showAlreadyOpenedMessage();
         return;
       }
@@ -4934,8 +5094,9 @@
         return;
       }
 
-      // Disable the button so you can't click again while loading.
+      // Disable the buttons so you can't click again while loading.
       openButton.disabled = true;
+      starterButton.disabled = true;
       statusText.textContent = "Opening pack...";
 
       try {
@@ -4977,7 +5138,13 @@
         // Step 4: add the new cards to your collection, show them,
         // and save the pack so a refresh keeps it.
         currentPackBought = false;
-        saveDailyDate();          // today's free pack is now used
+        currentPackStarter = !!starter;
+        if (starter) {
+          starterPacks -= 1;      // one starter pack used
+          writeJson(STARTER_KEY, starterPacks);
+        } else {
+          saveDailyDate();        // today's free pack is now used
+        }
         addPackToCollection(currentPack);
         renderCollection();       // keeps the collection page up to date
         // Learn the release year of each card's set (for the year achievements).
@@ -4989,13 +5156,13 @@
         savePack();
         statusText.textContent = "";
 
-        // Lock the button until tomorrow. We don't show the "already opened"
+        // Lock the daily button until tomorrow. We don't show the "already opened"
         // message here, since this was the first pack of the day. That
         // message only appears when you come back to the page later.
-        if (ONE_PACK_PER_DAY) {
-          openButton.disabled = true;
-          return;   // "return" stops here, leaving the button turned off
-        }
+        openButton.disabled = ONE_PACK_PER_DAY && dailyOpenedToday();
+        starterButton.disabled = false;
+        updateStarterButton();
+        return;
       } catch (error) {
         // If anything above failed, tell the user and log details for debugging.
         // Use our own message if the error has one, otherwise a general one.
@@ -5003,12 +5170,18 @@
         console.error(error);
       }
 
-      // Turn the button back on.
-      openButton.disabled = false;
+      // Turn the buttons back on (the daily one stays off if today's pack is used).
+      openButton.disabled = ONE_PACK_PER_DAY && dailyOpenedToday();
+      starterButton.disabled = false;
     }
 
-    // Run openPack whenever the button is clicked.
-    openButton.addEventListener("click", openPack);
+    // Run openPack whenever a button is clicked.
+    openButton.addEventListener("click", function () {
+      openPack(false);
+    });
+    starterButton.addEventListener("click", function () {
+      openPack(true);
+    });
 
     // When the page first loads: load your collection and your sort choice.
     collection = loadCollection();
@@ -5026,20 +5199,29 @@
     // (with your flipped cards) and lock the button.
     const savedPack = loadSavedPack();
     // Packs from before the shop existed: today's saved pack was the free one.
-    if (savedPack && savedPack.date === getToday() && !savedPack.bought && !readDailyDate()) {
+    if (savedPack && savedPack.date === getToday() && !savedPack.bought && !savedPack.starter && !readDailyDate()) {
       saveDailyDate();
     }
     // Bring back today's pack, or a bought pack that still has cards face down.
     if (savedPack && ((ONE_PACK_PER_DAY && savedPack.date === getToday()) ||
-        (savedPack.bought && savedPack.pack.some(function (entry) { return !entry.flipped; })))) {
+        ((savedPack.bought || savedPack.starter) && savedPack.pack.some(function (entry) { return !entry.flipped; })))) {
       currentPack = savedPack.pack;
       currentPackBought = !!savedPack.bought;
+      currentPackStarter = !!savedPack.starter;
       syncPackToCollection();   // make sure these cards are in the collection
       renderPack();
     }
     if (ONE_PACK_PER_DAY && dailyOpenedToday()) {
       showAlreadyOpenedMessage();
     }
+
+    // Starter packs, and the "How it works" box.
+    starterPacks = loadStarterPacks();
+    updateStarterButton();
+    infoBox.hidden = false;   // shown on every visit; "Hide" only lasts until the page is reloaded
+    infoHide.addEventListener("click", function () {
+      infoBox.hidden = true;
+    });
 
     // Your money.
     money = loadMoney();
