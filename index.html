@@ -67,6 +67,58 @@
     }
     .set-card { width: 90px; font-size: 0.7rem; text-align: center; }
     .set-card img { width: 100%; border-radius: 6px; display: block; }
+    #wallet {
+      display: inline-block;
+      margin: 4px 0 0;
+      padding: 6px 16px;
+      border: 2px solid #ffcb05;
+      border-radius: 999px;
+      font-weight: 700;
+      background: #26264a;
+    }
+    .shop-box {
+      max-width: 900px;
+      margin: 0 auto 24px;
+      padding: 16px;
+      border: 2px solid #3a3a66;
+      border-radius: 14px;
+      background: #1f1f3a;
+      text-align: left;
+    }
+    .shop-box h2 { margin: 0 0 8px; font-size: 1.1rem; color: #ffcb05; }
+    .shop-box label { margin-right: 8px; }
+    #shop-set {
+      font-size: 1rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+      max-width: 100%;
+    }
+    #shop-buy, #sell-all, .sell-button {
+      font-size: 0.95rem;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #ffcb05;
+      color: #1b1b2f;
+      cursor: pointer;
+    }
+    #shop-buy:disabled, #sell-all:disabled, .sell-button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #shop-hint, #shop-status { min-height: 1.3em; margin: 8px 0 0; font-size: 0.9rem; opacity: 0.85; }
+    .dupe-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 0;
+      border-top: 1px solid #3a3a66;
+    }
+    .dupe-row img { flex: none; width: 70px; border-radius: 6px; cursor: pointer; }
+    .dupe-info { flex: 1; min-width: 0; }
+    .dupe-name { font-weight: 700; }
+    .dupe-meta { font-size: 0.8rem; opacity: 0.75; margin-top: 2px; }
+    .dupe-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
     #tabs {
       flex-wrap: wrap;
       display: flex;
@@ -623,11 +675,15 @@
   <h1>Pokémon Pack Opener</h1>
 
   <!-- Buttons to switch between the two pages. -->
+  <!-- Your money. It goes up when you sell duplicates and down when you buy packs. -->
+  <div id="wallet">💰 $0.00</div>
+
   <nav id="tabs">
     <button class="tab-button active" id="tab-pack" type="button">Open packs</button>
     <button class="tab-button" id="tab-collection" type="button">Collection (<span id="collection-count">0</span>)</button>
     <button class="tab-button" id="tab-achievements" type="button">Achievements (<span id="achievement-count">0</span>)</button>
     <button class="tab-button" id="tab-sets" type="button">Master Set Collection (<span id="set-count">0</span>)</button>
+    <button class="tab-button" id="tab-shop" type="button">Duplicates &amp; Shop (<span id="shop-count">0</span>)</button>
 
   </nav>
 
@@ -706,6 +762,26 @@
     <div id="sets-list"></div>
   </section>
 
+  <!-- PAGE 5: buy packs, and sell the duplicate cards you don't need. -->
+  <section id="view-shop" hidden>
+    <div class="shop-box">
+      <h2>Buy a pack</h2>
+      <p id="shop-info"></p>
+      <label for="shop-set">Set</label>
+      <select id="shop-set"><option value="">Loading sets...</option></select>
+      <button id="shop-buy" type="button">Buy pack</button>
+      <p id="shop-hint"></p>
+      <p id="shop-status"></p>
+    </div>
+
+    <div class="shop-box">
+      <h2>Duplicates</h2>
+      <p id="dupe-summary"></p>
+      <button id="sell-all" type="button" hidden>Sell all duplicates</button>
+      <div id="dupe-list"></div>
+    </div>
+  </section>
+
   <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
   <div id="modal" hidden>
     <div id="modal-content">
@@ -741,6 +817,23 @@
 
     // The name we use to save your pack in the browser's storage.
     const STORAGE_KEY = "lastPack";
+
+    // The shop: selling duplicates and buying packs.
+    // You get this percentage of a card's TCGplayer price when you sell it.
+    const SELL_PERCENT = 50;
+    // A pack costs about what 7 average cards from its set are worth:
+    // (average card price) x PACK_SIZE x PRICE_MULTIPLIER. Raise the
+    // multiplier to make packs pricier, lower it to make them cheaper.
+    const PRICE_MULTIPLIER = 1;
+    // No pack costs less than this many dollars.
+    const MIN_PACK_PRICE = 1;
+    // To find a set's average card price we look at this many random cards from it.
+    const PRICE_SAMPLE_SIZE = 40;
+    // Where we remember each set's price, so it stays the same.
+    const SET_PRICES_KEY = "setPrices";
+    // Where we save your money (as whole cents) and the day you opened your free pack.
+    const MONEY_KEY = "money";
+    const DAILY_KEY = "dailyDate";
 
     // The names we use to save your collection and your chosen sort order.
     const COLLECTION_KEY = "collection";
@@ -780,6 +873,18 @@
     const setsSort = document.getElementById("sets-sort");
     const setsSummary = document.getElementById("sets-summary");
     const setsList = document.getElementById("sets-list");
+    const walletBox = document.getElementById("wallet");
+    const tabShop = document.getElementById("tab-shop");
+    const shopCount = document.getElementById("shop-count");
+    const viewShop = document.getElementById("view-shop");
+    const shopInfo = document.getElementById("shop-info");
+    const shopSet = document.getElementById("shop-set");
+    const shopBuy = document.getElementById("shop-buy");
+    const shopHint = document.getElementById("shop-hint");
+    const shopStatus = document.getElementById("shop-status");
+    const dupeSummary = document.getElementById("dupe-summary");
+    const sellAllButton = document.getElementById("sell-all");
+    const dupeList = document.getElementById("dupe-list");
     const modal = document.getElementById("modal");
     const modalClose = document.getElementById("modal-close");
     const modalStage = document.getElementById("modal-stage");
@@ -800,6 +905,12 @@
     // One small function per card in the pack that flips it on screen.
     // "Reveal all" uses these to flip the cards one after another.
     let packFlippers = [];
+
+    // True when the pack on screen was bought in the shop (not the daily pack).
+    let currentPackBought = false;
+
+    // Your money, in whole cents (so we never get 0.1 + 0.2 style rounding errors).
+    let money = 0;
 
     // Every card you've pulled, from every pack. Each item looks like:
     // { id, seq (pull order), card, imageUrl, variant, revealed, packDate }
@@ -840,7 +951,7 @@
     // Save the pack (and which cards are flipped) in the browser.
     function savePack() {
       try {
-        const saved = { date: getToday(), pack: currentPack };
+        const saved = { date: getToday(), pack: currentPack, bought: currentPackBought };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
       } catch (error) {
         console.error(error);
@@ -864,14 +975,19 @@
     // excludeIds holds the ids of cards we've already looked at, so we
     // never pick the same card twice for one pack.
     function pickRandomCards(count, excludeIds) {
+      return pickRandomFrom(allCards, count, excludeIds);
+    }
+
+    // The same, from any list of cards (the shop uses a single set's cards).
+    function pickRandomFrom(list, count, excludeIds) {
       const picked = [];
       const usedPositions = new Set();   // remembers which ones we've taken
 
       // Stop early if there are no unused cards left, so we never loop forever.
       while (picked.length < count &&
-             usedPositions.size + excludeIds.size < allCards.length) {
-        const position = Math.floor(Math.random() * allCards.length);
-        const brief = allCards[position];
+             usedPositions.size + excludeIds.size < list.length) {
+        const position = Math.floor(Math.random() * list.length);
+        const brief = list[position];
         // Only take a card if we haven't already picked or rejected it.
         if (!usedPositions.has(position) && !excludeIds.has(brief.id)) {
           usedPositions.add(position);
@@ -1488,7 +1604,7 @@
 
     // Update the number on the "Collection" button.
     function updateCollectionCount() {
-      collectionCount.textContent = collection.length;
+      collectionCount.textContent = ownedItems().length;
     }
 
     // Give a rarity name a number, so cards can be sorted by rarity.
@@ -1662,20 +1778,22 @@
     function renderCollection() {
       collectionGrid.innerHTML = "";
 
+      updateCollectionCount();
       updateAchievementCount();
-      if (collection.length === 0) {
+      const owned = ownedItems();   // cards you sold are gone from the collection
+      if (owned.length === 0) {
         collectionSummary.textContent = "Your collection is empty. Open a pack to start collecting!";
         return;
       }
 
-      sortCollection(collection, sortSelect.value).forEach(function (item) {
+      sortCollection(owned, sortSelect.value).forEach(function (item) {
         collectionGrid.appendChild(createCollectionSlot(item));
       });
 
       // The summary line: how many cards, and what the flipped ones are worth.
       let flippedCount = 0;
       let totalValue = 0;
-      collection.forEach(function (item) {
+      owned.forEach(function (item) {
         if (item.revealed) {
           flippedCount++;
           const price = getItemPrice(item);
@@ -1684,9 +1802,9 @@
           }
         }
       });
-      const unflipped = collection.length - flippedCount;
+      const unflipped = owned.length - flippedCount;
 
-      let summary = collection.length + (collection.length === 1 ? " card" : " cards");
+      let summary = owned.length + (owned.length === 1 ? " card" : " cards");
       summary += " · Total value " + formatMoney(totalValue, "USD") + " (TCGplayer)";
       summary += " · " + fmt(getTotals().points) + " points";
       if (unflipped > 0) {
@@ -1701,10 +1819,12 @@
       viewCollection.hidden = name !== "collection";
       viewAchievements.hidden = name !== "achievements";
       viewSets.hidden = name !== "sets";
+      viewShop.hidden = name !== "shop";
       tabPack.classList.toggle("active", name === "pack");
       tabCollection.classList.toggle("active", name === "collection");
       tabAchievements.classList.toggle("active", name === "achievements");
       tabSets.classList.toggle("active", name === "sets");
+      tabShop.classList.toggle("active", name === "shop");
 
       // Redraw a page each time you visit it, so it's always current.
       if (name === "collection") {
@@ -1715,6 +1835,10 @@
       }
       if (name === "sets") {
         renderSets();
+      }
+      if (name === "shop") {
+        loadShopSets();
+        renderShop();
       }
     }
 
@@ -1729,6 +1853,9 @@
     });
     tabSets.addEventListener("click", function () {
       showView("sets");
+    });
+    tabShop.addEventListener("click", function () {
+      showView("shop");
     });
 
     // Re-sort the collection (and remember the choice) when the menu changes.
@@ -3456,7 +3583,7 @@
     // (Sets you have nothing from are never listed.)
     function getSetProgress() {
       const sets = {};
-      collection.forEach(function (item) {
+      ownedItems().forEach(function (item) {
         if (!item.revealed || !item.card.set || !item.card.set.id) {
           return;
         }
@@ -3605,6 +3732,7 @@
     function updateAchievementCount() {
       achievementCount.textContent = getTotals().list.length;
       updateSetsTab();
+      updateShopTab();
       if (!viewAchievements.hidden) {
         renderAchievements();
       }
@@ -3711,14 +3839,504 @@
 
     // ---------- Opening a pack ----------
 
+    // ---------- Money, selling duplicates, buying packs ----------
+
+    // The cards you still own (cards you sold are marked "sold" and hidden).
+    function ownedItems() {
+      return collection.filter(function (item) {
+        return !item.sold;
+      });
+    }
+
+    // Your money, saved as whole cents.
+    function loadMoney() {
+      try {
+        const saved = parseInt(localStorage.getItem(MONEY_KEY), 10);
+        if (saved >= 0) {
+          return saved;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return 0;
+    }
+
+    function saveMoney() {
+      try {
+        localStorage.setItem(MONEY_KEY, String(money));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function formatCents(cents) {
+      return formatMoney(cents / 100, "USD");
+    }
+
+    function updateWallet() {
+      walletBox.textContent = "💰 " + formatCents(money);
+    }
+
+    // The free daily pack: remember which day you opened it.
+    function readDailyDate() {
+      try {
+        return localStorage.getItem(DAILY_KEY);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveDailyDate() {
+      try {
+        localStorage.setItem(DAILY_KEY, getToday());
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function dailyOpenedToday() {
+      return readDailyDate() === getToday();
+    }
+
+    // What you get for selling one copy of a card, in cents (or null if the
+    // card has no price).
+    function sellPriceCents(item) {
+      const price = getItemPrice(item);
+      if (price === null) {
+        return null;
+      }
+      return Math.max(1, Math.floor(Math.round(price * 100) * SELL_PERCENT / 100));
+    }
+
+    // Find your duplicates. A duplicate is another copy of the same card in
+    // the same version (normal, holo or reverse). Your first copy is always
+    // kept; only the extra copies can be sold.
+    function getDuplicateGroups() {
+      const groups = {};
+      ownedItems().forEach(function (item) {
+        if (!item.revealed) {
+          return;   // you haven't seen face-down cards yet
+        }
+        const key = item.card.id + "|" + item.variant;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(item);
+      });
+
+      const result = [];
+      Object.keys(groups).forEach(function (key) {
+        const items = groups[key].sort(function (a, b) { return a.seq - b.seq; });
+        const unit = sellPriceCents(items[0]);
+        if (items.length > 1 && unit !== null) {
+          result.push({
+            key: key,
+            first: items[0],
+            copies: items.length,
+            extras: items.slice(1),
+            unitCents: unit
+          });
+        }
+      });
+      // The most valuable duplicates first.
+      result.sort(function (a, b) {
+        return b.unitCents * b.extras.length - a.unitCents * a.extras.length ||
+          a.first.card.name.localeCompare(b.first.card.name);
+      });
+      return result;
+    }
+
+    // Sell some extra copies. "items" are collection items. Returns the money earned.
+    function sellItems(items) {
+      let earned = 0;
+      items.forEach(function (item) {
+        const cents = sellPriceCents(item);
+        if (cents !== null && !item.sold) {
+          item.sold = true;          // it stays in the data, so achievements still count it
+          item.soldFor = cents;
+          earned += cents;
+        }
+      });
+      money += earned;
+      saveMoney();
+      saveCollection();
+      updateWallet();
+      renderCollection();            // also refreshes the other pages
+      return earned;
+    }
+
+    // Update the number on the "Duplicates & Shop" button.
+    function updateShopTab() {
+      let extra = 0;
+      getDuplicateGroups().forEach(function (group) {
+        extra += group.extras.length;
+      });
+      shopCount.textContent = extra;
+      if (!viewShop.hidden) {
+        renderShop();
+      }
+    }
+
+    let sellAllArmed = false;          // true after the first click on "Sell all"
+    let sellAllTimer = null;
+    let shopBusy = false;              // true while a pack is being bought
+
+    // Draw the shop page.
+    function renderShop() {
+      const setId = shopSet.value;
+      const priced = setId ? packPrices[setId] : null;
+      shopInfo.textContent = "A pack holds " + PACK_SIZE + " cards from the set you choose. Its price is based on the " +
+        "average card price in that set" + (priced ? " (this set: " + formatMoney(priced.avg, "USD") + " per card)" : "") +
+        ". Selling a duplicate pays " + SELL_PERCENT + "% of its TCGplayer price.";
+
+      // Can you buy right now?
+      const faceDown = currentPack.some(function (entry) { return !entry.flipped; });
+      let hint = "";
+      if (!shopSet.value) {
+        hint = "Choose a set.";
+      } else if (!priced) {
+        hint = pricingFailed[setId] ? "Couldn't work out a price for this set. Pick it again to retry."
+          : "Working out this set's price...";
+      } else if (money < priced.cents) {
+        hint = "You need " + formatCents(priced.cents - money) + " more. Sell some duplicates!";
+      } else if (faceDown) {
+        hint = "Flip all the cards in your current pack first.";
+      }
+      shopHint.textContent = hint;
+      shopBuy.disabled = shopBusy || hint !== "";
+      shopBuy.textContent = priced ? "Buy pack (" + formatCents(priced.cents) + ")" : "Buy pack";
+
+      // The duplicates.
+      const groups = getDuplicateGroups();
+      dupeList.innerHTML = "";
+      let extraCount = 0;
+      let totalCents = 0;
+      groups.forEach(function (group) {
+        extraCount += group.extras.length;
+        totalCents += group.unitCents * group.extras.length;
+      });
+
+      if (groups.length === 0) {
+        dupeSummary.textContent = "No duplicates yet. When you pull a second copy of the same card (in the same version), it shows up here.";
+        sellAllButton.hidden = true;
+        return;
+      }
+      dupeSummary.textContent = extraCount + (extraCount === 1 ? " extra card" : " extra cards") +
+        " worth " + formatCents(totalCents) + " if sold. Your first copy of each card is always kept.";
+      sellAllButton.hidden = false;
+      sellAllButton.textContent = sellAllArmed
+        ? "Click again to sell " + extraCount + " cards for " + formatCents(totalCents)
+        : "Sell all duplicates (" + formatCents(totalCents) + ")";
+
+      groups.forEach(function (group) {
+        const card = group.first.card;
+        const row = document.createElement("div");
+        row.className = "dupe-row";
+
+        const picture = document.createElement("img");
+        picture.src = group.first.imageUrl;
+        picture.alt = card.name;
+        picture.loading = "lazy";
+        picture.addEventListener("click", function () {
+          openModal(group.first, false);
+        });
+
+        const info = document.createElement("div");
+        info.className = "dupe-info";
+        const name = document.createElement("div");
+        name.className = "dupe-name";
+        name.textContent = card.name;
+        const meta = document.createElement("div");
+        meta.className = "dupe-meta";
+        const variantName = { normal: "Normal", holo: "Holo", reverse: "Reverse Holo" }[group.first.variant] || group.first.variant;
+        meta.textContent = (card.set ? card.set.name + " · " : "") + variantName + " · You own " + group.copies +
+          " (" + group.extras.length + " extra) · " + formatCents(group.unitCents) + " each";
+        info.appendChild(name);
+        info.appendChild(meta);
+
+        const buttons = document.createElement("div");
+        buttons.className = "dupe-buttons";
+        const sellOne = document.createElement("button");
+        sellOne.type = "button";
+        sellOne.className = "sell-button";
+        sellOne.textContent = "Sell 1 (" + formatCents(group.unitCents) + ")";
+        sellOne.addEventListener("click", function () {
+          sellItems([group.extras[group.extras.length - 1]]);
+        });
+        buttons.appendChild(sellOne);
+        if (group.extras.length > 1) {
+          const sellMany = document.createElement("button");
+          sellMany.type = "button";
+          sellMany.className = "sell-button";
+          sellMany.textContent = "Sell all " + group.extras.length + " (" + formatCents(group.unitCents * group.extras.length) + ")";
+          sellMany.addEventListener("click", function () {
+            sellItems(group.extras);
+          });
+          buttons.appendChild(sellMany);
+        }
+
+        row.appendChild(picture);
+        row.appendChild(info);
+        row.appendChild(buttons);
+        dupeList.appendChild(row);
+      });
+    }
+
+    // "Sell all duplicates" asks you to click twice, so it can't happen by accident.
+    sellAllButton.addEventListener("click", function () {
+      if (!sellAllArmed) {
+        sellAllArmed = true;
+        clearTimeout(sellAllTimer);
+        sellAllTimer = setTimeout(function () {
+          sellAllArmed = false;
+          renderShop();
+        }, 5000);
+        renderShop();
+        return;
+      }
+      sellAllArmed = false;
+      clearTimeout(sellAllTimer);
+      let items = [];
+      getDuplicateGroups().forEach(function (group) {
+        items = items.concat(group.extras);
+      });
+      sellItems(items);
+    });
+
+    // Fill the "Set" menu with every set from TCGdex. Done once.
+    let shopSetsLoaded = false;
+    async function loadShopSets() {
+      if (shopSetsLoaded) {
+        return;
+      }
+      try {
+        const sets = await fetchFromApi(SETS_URL);
+        sets.sort(function (a, b) { return a.name.localeCompare(b.name); });
+        shopSet.innerHTML = "";
+        sets.forEach(function (set) {
+          const option = document.createElement("option");
+          option.value = set.id;
+          const total = set.cardCount && set.cardCount.total ? " (" + set.cardCount.total + " cards)" : "";
+          option.textContent = set.name + total;
+          shopSet.appendChild(option);
+        });
+        shopSetsLoaded = true;
+        priceSet(shopSet.value);   // start working out the first set's price
+      } catch (error) {
+        console.error(error);
+        shopSet.innerHTML = "";
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Couldn't load the sets";
+        shopSet.appendChild(option);
+        shopStatus.textContent = "Couldn't load the list of sets. Open this page again to retry.";
+      }
+      renderShop();
+    }
+    shopSet.addEventListener("change", function () {
+      delete pricingFailed[shopSet.value];
+      renderShop();
+      priceSet(shopSet.value);
+    });
+
+    // ----- Pack prices (based on the average card price of each set) -----
+    let packPrices = loadPackPrices();   // { setId: { avg: dollars, cents: price in cents } }
+    const pricingFailed = {};            // sets we couldn't price this time
+    const pricingNow = {};               // sets being priced right now
+    const setDetailCache = {};           // the set pages we've already downloaded
+
+    function loadPackPrices() {
+      try {
+        const text = localStorage.getItem(SET_PRICES_KEY);
+        if (text) {
+          const saved = JSON.parse(text);
+          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+            return saved;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      return {};
+    }
+
+    function savePackPrices() {
+      try {
+        localStorage.setItem(SET_PRICES_KEY, JSON.stringify(packPrices));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // A set's own page lists all of its cards. Download it once.
+    function getSetDetail(setId) {
+      if (!setDetailCache[setId]) {
+        setDetailCache[setId] = fetchFromApi(SETS_URL + "/" + setId).catch(function (error) {
+          delete setDetailCache[setId];   // allow a retry later
+          throw error;
+        });
+      }
+      return setDetailCache[setId];
+    }
+
+    // Work out a set's pack price: look at a random sample of its cards,
+    // average the TCGplayer price of the ones that have a price, and charge
+    // what 7 of those cards would be worth. The answer is remembered.
+    async function priceSet(setId) {
+      if (!setId || packPrices[setId] || pricingNow[setId]) {
+        return;
+      }
+      pricingNow[setId] = true;
+      try {
+        const set = await getSetDetail(setId);
+        const list = (set.cards || []).filter(function (card) {
+          return card.image;
+        });
+        const briefs = pickRandomFrom(list, PRICE_SAMPLE_SIZE, new Set());
+        const cards = await Promise.all(briefs.map(function (brief) {
+          return fetchFromApi(API_URL + "/" + brief.id).catch(function () { return null; });
+        }));
+
+        let total = 0;
+        let count = 0;
+        cards.forEach(function (card) {
+          if (!card) {
+            return;
+          }
+          const variant = chooseVariantWithPrice(card);
+          const price = variant === null ? null : getTcgplayerPrice(card, variant);
+          if (typeof price === "number") {
+            total += price;
+            count++;
+          }
+        });
+        if (count === 0) {
+          throw new Error("No priced cards found in the sample.");
+        }
+
+        const avg = total / count;
+        // Round to the nearest quarter, and never below the minimum.
+        const cents = Math.max(MIN_PACK_PRICE * 100,
+          Math.round(avg * PACK_SIZE * PRICE_MULTIPLIER * 100 / 25) * 25);
+        packPrices[setId] = { avg: Math.round(avg * 100) / 100, cents: cents };
+        savePackPrices();
+      } catch (error) {
+        console.error(error);
+        pricingFailed[setId] = true;
+      }
+      delete pricingNow[setId];
+      if (!viewShop.hidden) {
+        renderShop();
+      }
+    }
+
+    // Buy a pack from the chosen set.
+    async function buyPack() {
+      const setId = shopSet.value;
+      const price = packPrices[setId];     // { avg, cents }, or nothing if not worked out yet
+      if (!setId || !price || shopBusy || money < price.cents ||
+          currentPack.some(function (entry) { return !entry.flipped; })) {
+        return;
+      }
+      shopBusy = true;
+      shopStatus.textContent = "Opening your pack...";
+      renderShop();
+
+      try {
+        // The set's own page lists all of its cards.
+        const set = await getSetDetail(setId);
+        const list = (set.cards || []).filter(function (card) {
+          return card.image;
+        });
+        const chosen = await drawPricedCards(list);
+        if (chosen.length < PACK_SIZE) {
+          const problem = new Error("Not enough cards with pricing data in this set.");
+          problem.userMessage = "This set doesn't have enough cards with pricing data to make a pack. You weren't charged.";
+          throw problem;
+        }
+
+        // Pay, then build the pack just like the daily one.
+        money -= price.cents;
+        saveMoney();
+        updateWallet();
+        const packId = "p" + Date.now();
+        currentPack = chosen.map(function (item) {
+          return {
+            card: item.card,
+            imageUrl: item.brief.image + "/high.png",
+            flipped: false,
+            variant: item.variant,
+            packDate: getToday(),
+            packId: packId
+          };
+        });
+        currentPackBought = true;
+        addPackToCollection(currentPack);
+        await fetchMissingSetYears(currentPack.map(function (entry) {
+          return entry.card.set ? entry.card.set.id : null;
+        }));
+        renderCollection();
+        renderPack();
+        savePack();
+        // Use the set's name, or the name shown in the menu if the set has none.
+        const setName = set.name || shopSet.options[shopSet.selectedIndex].text.replace(/ \(\d+ cards\)$/, "");
+        statusText.textContent = "You bought a " + setName + " pack for " + formatCents(price.cents) + ".";
+        shopStatus.textContent = "";
+        showView("pack");
+      } catch (error) {
+        shopStatus.textContent = error.userMessage || "Couldn't buy a pack. Please try again. You weren't charged.";
+        console.error(error);
+      }
+      shopBusy = false;
+      renderShop();
+    }
+    shopBuy.addEventListener("click", buyPack);
+
+    // Pick 7 random cards from a list that have a TCGplayer price.
+    // We pick random cards, look up their details, and throw away any
+    // that have no price. If the pack still isn't full, we go around again.
+    // Returns a list of { brief, card, variant } (shorter than a pack if we ran out).
+    async function drawPricedCards(list) {
+      const chosen = [];                // the cards that made it into the pack
+      const triedIds = new Set();       // every card we've already looked at
+      let round = 0;
+
+      while (chosen.length < PACK_SIZE && round < MAX_ROUNDS) {
+        round++;
+
+        // Pick as many new cards as we still need.
+        const briefs = pickRandomFrom(list, PACK_SIZE - chosen.length, triedIds);
+        if (briefs.length === 0) {
+          break;                        // every card has been tried
+        }
+
+        // Ask for each card's full details, all at the same time.
+        const cards = await Promise.all(briefs.map(function (brief) {
+          return fetchFromApi(API_URL + "/" + brief.id);
+        }));
+
+        // Keep only cards that have a price for the version we'll draw.
+        cards.forEach(function (card, i) {
+          triedIds.add(briefs[i].id);
+          const variant = chooseVariantWithPrice(card);
+          if (variant !== null) {
+            chosen.push({ brief: briefs[i], card: card, variant: variant });
+          }
+        });
+      }
+      return chosen;
+    }
+
     // Everything that happens when you click "Open a pack".
     async function openPack() {
-      // If you already opened a pack today, bring that pack back instead.
-      const saved = loadSavedPack();
-      if (ONE_PACK_PER_DAY && saved && saved.date === getToday()) {
-        currentPack = saved.pack;
-        renderPack();
+      // One free pack per day.
+      if (ONE_PACK_PER_DAY && dailyOpenedToday()) {
         showAlreadyOpenedMessage();
+        return;
+      }
+      // Don't leave cards face down behind: flip the pack on screen first.
+      if (currentPack.some(function (entry) { return !entry.flipped; })) {
+        statusText.textContent = "Flip all the cards in your current pack first.";
         return;
       }
 
@@ -3738,33 +4356,7 @@
         }
 
         // Step 2: fill the pack with cards that have a TCGplayer price.
-        // We pick random cards, look up their details, and throw away any
-        // that have no price. If the pack still isn't full, we go around again.
-        const chosen = [];                // the cards that made it into the pack
-        const triedIds = new Set();       // every card we've already looked at
-        let round = 0;
-
-        while (chosen.length < PACK_SIZE && round < MAX_ROUNDS) {
-          round++;
-
-          // Pick as many new cards as we still need.
-          const briefs = pickRandomCards(PACK_SIZE - chosen.length, triedIds);
-
-          // Ask for each card's full details, all at the same time.
-          // Promise.all waits until every request has finished.
-          const cards = await Promise.all(briefs.map(function (brief) {
-            return fetchFromApi(API_URL + "/" + brief.id);
-          }));
-
-          // Keep only cards that have a price for the version we'll draw.
-          cards.forEach(function (card, i) {
-            triedIds.add(briefs[i].id);
-            const variant = chooseVariantWithPrice(card);
-            if (variant !== null) {
-              chosen.push({ brief: briefs[i], card: card, variant: variant });
-            }
-          });
-        }
+        const chosen = await drawPricedCards(allCards);
 
         // If we still couldn't fill the pack, stop and show a message.
         if (chosen.length < PACK_SIZE) {
@@ -3790,6 +4382,8 @@
 
         // Step 4: add the new cards to your collection, show them,
         // and save the pack so a refresh keeps it.
+        currentPackBought = false;
+        saveDailyDate();          // today's free pack is now used
         addPackToCollection(currentPack);
         renderCollection();       // keeps the collection page up to date
         // Learn the release year of each card's set (for the year achievements).
@@ -3837,12 +4431,25 @@
     // If you already opened a pack today, bring back that pack
     // (with your flipped cards) and lock the button.
     const savedPack = loadSavedPack();
-    if (ONE_PACK_PER_DAY && savedPack && savedPack.date === getToday()) {
+    // Packs from before the shop existed: today's saved pack was the free one.
+    if (savedPack && savedPack.date === getToday() && !savedPack.bought && !readDailyDate()) {
+      saveDailyDate();
+    }
+    // Bring back today's pack, or a bought pack that still has cards face down.
+    if (savedPack && ((ONE_PACK_PER_DAY && savedPack.date === getToday()) ||
+        (savedPack.bought && savedPack.pack.some(function (entry) { return !entry.flipped; })))) {
       currentPack = savedPack.pack;
+      currentPackBought = !!savedPack.bought;
       syncPackToCollection();   // make sure these cards are in the collection
       renderPack();
+    }
+    if (ONE_PACK_PER_DAY && dailyOpenedToday()) {
       showAlreadyOpenedMessage();
     }
+
+    // Your money.
+    money = loadMoney();
+    updateWallet();
 
     // Load your earned achievements. Any you've already earned with the cards
     // you have are unlocked quietly, without a pop-up.
