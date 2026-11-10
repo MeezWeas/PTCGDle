@@ -76,6 +76,49 @@
       font-weight: 700;
       background: #26264a;
     }
+    #lb-name-form { display: flex; flex-wrap: wrap; gap: 8px; }
+    #lb-name-input {
+      font-size: 1rem;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 2px solid #3a3a66;
+      background: #26264a;
+      color: #f1f1f1;
+    }
+    #lb-name-save, #lb-name-cancel, #lb-refresh {
+      font-size: 0.95rem;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #ffcb05;
+      color: #1b1b2f;
+      cursor: pointer;
+    }
+    #lb-name-cancel { background: #3a3a66; color: #f1f1f1; }
+    #lb-name-save:disabled { opacity: 0.5; cursor: wait; }
+    #lb-name-status, #lb-status { min-height: 1.3em; margin: 8px 0 0; font-size: 0.9rem; opacity: 0.85; }
+    #lb-boards { max-width: 1100px; margin: 0 auto; }
+    .lb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; text-align: left; }
+    .lb-grid .shop-box { margin: 0; }
+    .lb-grid small { font-weight: 400; opacity: 0.7; }
+    .lb-list { margin: 0; padding-left: 28px; }
+    .lb-list li { padding: 4px 0; }
+    .lb-list li .lb-score { float: right; font-weight: 700; }
+    .lb-list li.me { color: #ffcb05; font-weight: 700; }
+    .lb-empty { list-style: none; margin-left: -28px; opacity: 0.7; }
+    #buy-another {
+      position: relative;
+      z-index: 2;
+      margin: 20px 0 0;
+      font-size: 1.05rem;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background: #ffcb05;
+      color: #1b1b2f;
+      cursor: pointer;
+    }
+    #buy-another:disabled { opacity: 0.5; cursor: not-allowed; }
     .shop-box {
       max-width: 900px;
       margin: 0 auto 24px;
@@ -408,6 +451,27 @@
     .card-stage.flipped .price-badge {
       opacity: 1;
     }
+    /* The NEW / DUPLICATE tag in a card's top corner, shown once it's flipped. */
+    .status-tag {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 3;
+      padding: 2px 9px;
+      border-radius: 999px;
+      border: 2px solid;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      opacity: 0;                   /* hidden until the card is flipped */
+      pointer-events: none;
+      transition: opacity 0.4s 0.35s;
+    }
+    .card-stage.flipped .status-tag { opacity: 1; }
+    .status-new { background: #1d5c34; border-color: #5ee08a; color: #d9ffe6; }
+    .status-version { background: #1d4f6e; border-color: #5bc0f5; color: #dff3ff; }
+    .status-duplicate { background: #6e3b12; border-color: #ffa94d; color: #ffe9d1; }
     /* A card with no TCGplayer price for its version. */
     .price-none {
       color: #9a9ab8;
@@ -475,6 +539,7 @@
       .aura::before,
       .aura::after,
       .price-badge,
+      .status-tag,
       .price-badge::before,
       .price-badge::after {
         animation: none;
@@ -684,6 +749,7 @@
     <button class="tab-button" id="tab-achievements" type="button">Achievements (<span id="achievement-count">0</span>)</button>
     <button class="tab-button" id="tab-sets" type="button">Master Set Collection (<span id="set-count">0</span>)</button>
     <button class="tab-button" id="tab-shop" type="button">Duplicates &amp; Shop (<span id="shop-count">0</span>)</button>
+    <button class="tab-button" id="tab-leaderboard" type="button">Leaderboard</button>
 
   </nav>
 
@@ -705,6 +771,9 @@
 
     <!-- Appears once every card is flipped: the points this pack earned. -->
     <div id="pack-summary" hidden></div>
+
+    <!-- After a bought pack is fully flipped: buy another from the same set. -->
+    <button id="buy-another" type="button" hidden></button>
   </section>
 
   <!-- PAGE 2: every card you've ever pulled. -->
@@ -782,6 +851,30 @@
     </div>
   </section>
 
+  <!-- PAGE 6: leaderboards shared with everyone who plays. -->
+  <section id="view-leaderboard" hidden>
+    <div class="shop-box" id="lb-name-box">
+      <h2>Your name</h2>
+      <p id="lb-name-info"></p>
+      <form id="lb-name-form">
+        <input id="lb-name-input" type="text" maxlength="20" placeholder="Choose a name" autocomplete="off">
+        <button id="lb-name-save" type="submit">Save name</button>
+        <button id="lb-name-cancel" type="button" hidden>Cancel</button>
+      </form>
+      <p id="lb-name-status"></p>
+    </div>
+
+    <div id="lb-boards" hidden>
+      <button id="lb-refresh" type="button">Refresh</button>
+      <p id="lb-status"></p>
+      <div class="lb-grid">
+        <div class="shop-box"><h2>Top pack today <small>(UTC day)</small></h2><ol id="lb-packs" class="lb-list"></ol></div>
+        <div class="shop-box"><h2>Master sets complete</h2><ol id="lb-sets" class="lb-list"></ol></div>
+        <div class="shop-box"><h2>Achievement points</h2><ol id="lb-points" class="lb-list"></ol></div>
+      </div>
+    </div>
+  </section>
+
   <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
   <div id="modal" hidden>
     <div id="modal-content">
@@ -799,6 +892,10 @@
     Unofficial fan project. Not affiliated with or endorsed by Nintendo,
     Game Freak, Creatures, or The Pokémon Company. Card data from TCGdex.
   </footer>
+
+  <!-- The Supabase library, used for the shared leaderboards. "@2" means the newest
+       version 2, which understands Supabase's newer "publishable" keys. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <!-- SCRIPT: the code that does the work. -->
   <script>
@@ -821,19 +918,35 @@
     // The shop: selling duplicates and buying packs.
     // You get this percentage of a card's TCGplayer price when you sell it.
     const SELL_PERCENT = 50;
-    // A pack costs about what 7 average cards from its set are worth:
-    // (average card price) x PACK_SIZE x PRICE_MULTIPLIER. Raise the
-    // multiplier to make packs pricier, lower it to make them cheaper.
+    // A pack costs the TCGplayer price of one booster pack of that set. That
+    // price comes from pack-prices.json, a file made by update_pack_prices.py.
+    // Sets missing from the file cost about what 7 average cards from the
+    // set are worth: (average card price) x PACK_SIZE.
+    // Either way the price is multiplied by PRICE_MULTIPLIER, so raise it to
+    // make every pack pricier, or lower it to make them cheaper.
     const PRICE_MULTIPLIER = 1;
+    const PACK_PRICES_URL = "pack-prices.json";
     // No pack costs less than this many dollars.
     const MIN_PACK_PRICE = 1;
     // To find a set's average card price we look at this many random cards from it.
     const PRICE_SAMPLE_SIZE = 40;
-    // Where we remember each set's price, so it stays the same.
-    const SET_PRICES_KEY = "setPrices";
     // Where we save your money (as whole cents) and the day you opened your free pack.
     const MONEY_KEY = "money";
     const DAILY_KEY = "dailyDate";
+
+// ----- The leaderboards (shared storage on Supabase) -----
+    // Fill these in from your Supabase project (Project Settings > API).
+    // Leave them empty and the leaderboards are simply switched off.
+    // The anon / publishable key is meant to be public: the database rules protect the data.
+    // NEVER put the "service_role" or "secret" key here.
+    const SUPABASE_URL = "https://sfvndeaoewzenmnvefmz.supabase.co";        // like "https://abcdefghijkl.supabase.co"
+    const SUPABASE_ANON_KEY = "sb_publishable_ZIf6AIntLR1o8fXeNXAshA_WxjW_jqj";   // a long key starting with "eyJ" or "sb_publishable_"
+    // Should packs you bought with money count for "top pack today"? (false = only the free daily pack.)
+    const LEADERBOARD_BOUGHT_PACKS = false;
+    // Where we save your display name, what we last sent, and which packs were submitted.
+    const NAME_KEY = "playerName";
+    const LB_SYNCED_KEY = "lbSynced";
+    const LB_PACKS_KEY = "lbPacks";
 
     // The names we use to save your collection and your chosen sort order.
     const COLLECTION_KEY = "collection";
@@ -874,6 +987,21 @@
     const setsSummary = document.getElementById("sets-summary");
     const setsList = document.getElementById("sets-list");
     const walletBox = document.getElementById("wallet");
+    const tabLeaderboard = document.getElementById("tab-leaderboard");
+    const viewLeaderboard = document.getElementById("view-leaderboard");
+    const lbNameInfo = document.getElementById("lb-name-info");
+    const lbNameForm = document.getElementById("lb-name-form");
+    const lbNameInput = document.getElementById("lb-name-input");
+    const lbNameSave = document.getElementById("lb-name-save");
+    const lbNameCancel = document.getElementById("lb-name-cancel");
+    const lbNameStatus = document.getElementById("lb-name-status");
+    const lbBoards = document.getElementById("lb-boards");
+    const lbRefresh = document.getElementById("lb-refresh");
+    const lbStatus = document.getElementById("lb-status");
+    const lbPacksList = document.getElementById("lb-packs");
+    const lbSetsList = document.getElementById("lb-sets");
+    const lbPointsList = document.getElementById("lb-points");
+    const buyAnother = document.getElementById("buy-another");
     const tabShop = document.getElementById("tab-shop");
     const shopCount = document.getElementById("shop-count");
     const viewShop = document.getElementById("view-shop");
@@ -1295,6 +1423,43 @@
       return badge;
     }
 
+    // Was this card new when you pulled it? Looks at everything you pulled before it
+    // (including earlier cards in the same pack):
+    //   "new"       - you'd never had this card
+    //   "version"   - you had this card, but not in this version (normal/holo/reverse)
+    //   "duplicate" - you already had this exact card in this version
+    function getCardStatus(entry) {
+      let mine = null;
+      collection.forEach(function (item) {
+        if (item.id === entry.collectionId) {
+          mine = item;
+        }
+      });
+      if (mine === null) {
+        return "new";
+      }
+      let sameCard = false;
+      let sameVersion = false;
+      collection.forEach(function (item) {
+        if (item.seq < mine.seq && item.card.id === mine.card.id) {
+          sameCard = true;
+          if (item.variant === mine.variant) {
+            sameVersion = true;
+          }
+        }
+      });
+      return sameVersion ? "duplicate" : (sameCard ? "version" : "new");
+    }
+
+    // The little tag in the corner of a pack card.
+    function createStatusTag(entry) {
+      const status = getCardStatus(entry);
+      const tag = document.createElement("div");
+      tag.className = "status-tag status-" + status;
+      tag.textContent = { new: "NEW", version: "NEW VERSION", duplicate: "DUPLICATE" }[status];
+      return tag;
+    }
+
     // ---------- The enlarged card pop-up ----------
 
     // Show one card big, with its details table.
@@ -1355,6 +1520,7 @@
       stage.className = "card-stage";
       addAuras(stage, entry);
       stage.appendChild(createPriceBadge(entry));   // hidden until the card is flipped
+      stage.appendChild(createStatusTag(entry));    // NEW or DUPLICATE, also hidden until flipped
 
       // The card is a button so it can be clicked (or used with the keyboard).
       const cardButton = document.createElement("button");
@@ -1820,11 +1986,13 @@
       viewAchievements.hidden = name !== "achievements";
       viewSets.hidden = name !== "sets";
       viewShop.hidden = name !== "shop";
+      viewLeaderboard.hidden = name !== "leaderboard";
       tabPack.classList.toggle("active", name === "pack");
       tabCollection.classList.toggle("active", name === "collection");
       tabAchievements.classList.toggle("active", name === "achievements");
       tabSets.classList.toggle("active", name === "sets");
       tabShop.classList.toggle("active", name === "shop");
+      tabLeaderboard.classList.toggle("active", name === "leaderboard");
 
       // Redraw a page each time you visit it, so it's always current.
       if (name === "collection") {
@@ -1839,6 +2007,9 @@
       if (name === "shop") {
         loadShopSets();
         renderShop();
+      }
+      if (name === "leaderboard") {
+        renderLeaderboardPage();
       }
     }
 
@@ -1856,6 +2027,9 @@
     });
     tabShop.addEventListener("click", function () {
       showView("shop");
+    });
+    tabLeaderboard.addEventListener("click", function () {
+      showView("leaderboard");
     });
 
     // Re-sort the collection (and remember the choice) when the menu changes.
@@ -3510,9 +3684,12 @@
       });
       if (!allFlipped) {
         packSummary.hidden = true;
+        updateBuyAnother();
         return;
       }
       setTimeout(renderPackSummary, delayMs || 0);
+      setTimeout(updateBuyAnother, delayMs || 0);
+      setTimeout(scheduleLeaderboardSync, delayMs || 0);   // the pack is complete: submit it
     }
 
     // Draw the summary: the points this pack's achievements added up to.
@@ -3733,6 +3910,7 @@
       achievementCount.textContent = getTotals().list.length;
       updateSetsTab();
       updateShopTab();
+      scheduleLeaderboardSync();
       if (!viewAchievements.hidden) {
         renderAchievements();
       }
@@ -3839,6 +4017,338 @@
 
     // ---------- Opening a pack ----------
 
+    // ---------- The leaderboards (Supabase) ----------
+
+    let lbClient = null;
+
+    // Are the leaderboards switched on (keys filled in and the library loaded)?
+    function lbConfigured() {
+      return SUPABASE_URL !== "" && SUPABASE_ANON_KEY !== "" &&
+        typeof supabase !== "undefined" && typeof supabase.createClient === "function";
+    }
+
+    function getLbClient() {
+      if (!lbClient && lbConfigured()) {
+        lbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      return lbClient;
+    }
+
+    // Everyone is signed in "anonymously": no email or password. Supabase gives
+    // this browser a secret identity, and the database rules only let that
+    // identity change its own rows.
+    async function lbUserId() {
+      const client = getLbClient();
+      const session = await client.auth.getSession();
+      if (session.data && session.data.session) {
+        return session.data.session.user.id;
+      }
+      const result = await client.auth.signInAnonymously();
+      if (result.error) {
+        throw result.error;
+      }
+      return result.data.user.id;
+    }
+
+    function readPlayerName() {
+      try {
+        return localStorage.getItem(NAME_KEY) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function readJson(key, fallback) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(key));
+        return saved === null || saved === undefined ? fallback : saved;
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function writeJson(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // The numbers we put on the leaderboards.
+    function getLbStats() {
+      return {
+        points: getTotals().points,
+        masterSets: getSetProgress().filter(function (s) {
+          return s.total && s.ownedCount >= s.total;      // every card in the set
+        }).length
+      };
+    }
+
+    // The value of the free daily pack, if it's finished and still counts today.
+    function getPackToSubmit() {
+      if (currentPack.length < PACK_SIZE || (currentPackBought && !LEADERBOARD_BOUGHT_PACKS) ||
+          currentPack[0].packDate !== getToday() ||
+          !currentPack.every(function (entry) { return entry.flipped; })) {
+        return null;
+      }
+      let value = 0;
+      currentPack.forEach(function (entry) {
+        const price = getTcgplayerPrice(entry.card, entry.variant);
+        if (typeof price === "number") {
+          value += price;
+        }
+      });
+      return { id: String(currentPack[0].packId || currentPack[0].packDate), value: Math.round(value * 100) / 100 };
+    }
+
+    // Wait a moment, then send our numbers (so a burst of changes is sent once).
+    let lbTimer = null;
+    function scheduleLeaderboardSync() {
+      if (!lbConfigured() || !readPlayerName()) {
+        return;
+      }
+      clearTimeout(lbTimer);
+      lbTimer = setTimeout(syncLeaderboard, 2000);
+    }
+
+    let lbSyncing = false;
+    let lbAgain = false;
+
+    // Send your points, master set count and today's pack to the shared database.
+    // Only what changed is sent. Any failure is ignored; we try again next time.
+    async function syncLeaderboard() {
+      const name = readPlayerName();
+      if (!lbConfigured() || !name) {
+        return;
+      }
+      if (lbSyncing) {
+        lbAgain = true;
+        return;
+      }
+      lbSyncing = true;
+      try {
+        const client = getLbClient();
+        const id = await lbUserId();
+        const stats = getLbStats();
+        const last = readJson(LB_SYNCED_KEY, {});
+
+        if (last.name !== name || last.points !== stats.points || last.masterSets !== stats.masterSets) {
+          const result = await client.from("players").upsert({
+            id: id, name: name, points: stats.points, master_sets: stats.masterSets
+          });
+          if (result.error) {
+            throw result.error;
+          }
+          writeJson(LB_SYNCED_KEY, { name: name, points: stats.points, masterSets: stats.masterSets });
+        }
+
+        const pack = getPackToSubmit();
+        const submitted = readJson(LB_PACKS_KEY, []);
+        if (pack && submitted.indexOf(pack.id) === -1) {
+          const result = await client.from("daily_packs").insert({ player_id: id, value: pack.value });
+          // 23505 means "already there" (one pack per day), which is fine.
+          if (result.error && result.error.code !== "23505") {
+            throw result.error;
+          }
+          submitted.push(pack.id);
+          writeJson(LB_PACKS_KEY, submitted.slice(-30));
+        }
+      } catch (error) {
+        console.error("Leaderboard sync failed:", error);
+      }
+      lbSyncing = false;
+      if (lbAgain) {
+        lbAgain = false;
+        scheduleLeaderboardSync();
+      }
+    }
+
+    // Turn a Supabase error into a message that says what to fix.
+    function describeLbError(error) {
+      const text = String((error && (error.message || error.error_description)) || error || "");
+      const code = error && (error.code || error.error_code || error.status) ? " [" + (error.code || error.error_code || error.status) + "]" : "";
+      const lower = text.toLowerCase();
+      let hint = "";
+      if (lower.indexOf("anonymous") !== -1 && (lower.indexOf("disabled") !== -1 || lower.indexOf("not enabled") !== -1)) {
+        hint = "Turn on \"Allow anonymous sign-ins\" in Supabase (Authentication > Sign In / Providers).";
+      } else if (lower.indexOf("invalid api key") !== -1 || lower.indexOf("apikey") !== -1 || lower.indexOf("jwt") !== -1) {
+        hint = "Check that SUPABASE_ANON_KEY is the publishable (or anon) key, copied in full.";
+      } else if (lower.indexOf("could not find the table") !== -1 || lower.indexOf("does not exist") !== -1 ||
+                 (error && error.code === "42P01") || (error && error.code === "PGRST205")) {
+        hint = "The tables are missing. Run leaderboard-setup.sql in the Supabase SQL Editor.";
+      } else if (lower.indexOf("row-level security") !== -1 || (error && error.code === "42501")) {
+        hint = "A security rule blocked this. Make sure all of leaderboard-setup.sql ran without errors.";
+      } else if (lower.indexOf("failed to fetch") !== -1 || lower.indexOf("network") !== -1) {
+        hint = "Couldn't reach Supabase. Check SUPABASE_URL (it should look like https://abcdefghijkl.supabase.co).";
+      }
+      return (hint ? hint + " " : "") + "Details: " + text + code;
+    }
+
+    // Names: 3 to 20 letters, numbers, spaces, and _ . -
+    const NAME_PATTERN = /^[A-Za-z0-9 _.-]{3,20}$/;
+
+    // Save a display name. Throws an error with a friendly "userMessage" if it can't.
+    async function savePlayerName(name) {
+      if (!NAME_PATTERN.test(name)) {
+        const problem = new Error("bad name");
+        problem.userMessage = "Names are 3 to 20 characters: letters, numbers, spaces, and _ . -";
+        throw problem;
+      }
+      const client = getLbClient();
+      const id = await lbUserId();
+      const stats = getLbStats();
+      const result = await client.from("players").upsert({
+        id: id, name: name, points: stats.points, master_sets: stats.masterSets
+      });
+      if (result.error) {
+        if (result.error.code === "23505") {
+          const problem = new Error("name taken");
+          problem.userMessage = "That name is already taken. Try another.";
+          throw problem;
+        }
+        throw result.error;
+      }
+      try {
+        localStorage.setItem(NAME_KEY, name);
+      } catch (error) {
+        console.error(error);
+      }
+      writeJson(LB_SYNCED_KEY, { name: name, points: stats.points, masterSets: stats.masterSets });
+      scheduleLeaderboardSync();   // also sends today's pack, if it's finished
+    }
+
+    // Show the name box: either "choose a name" or "playing as ...".
+    let lbRenaming = false;
+    function renderLeaderboardPage() {
+      lbNameStatus.textContent = "";
+      lbStatus.textContent = "";
+
+      if (!lbConfigured()) {
+        lbNameInfo.textContent = "The leaderboards aren't switched on yet. Add your Supabase URL and key near the top of the script " +
+          "(SUPABASE_URL and SUPABASE_ANON_KEY).";
+        lbNameForm.hidden = true;
+        lbBoards.hidden = true;
+        return;
+      }
+
+      const name = readPlayerName();
+      if (!name || lbRenaming) {
+        lbNameInfo.textContent = name
+          ? "Playing as " + name + ". Choose a new name:"
+          : "Choose a name to show on the leaderboards. Everyone can see it, so keep it friendly.";
+        lbNameForm.hidden = false;
+        lbNameCancel.hidden = !name;
+        lbNameInput.value = name;
+      } else {
+        lbNameInfo.innerHTML = "";
+        lbNameInfo.appendChild(document.createTextNode("Playing as "));
+        const bold = document.createElement("strong");
+        bold.textContent = name;
+        lbNameInfo.appendChild(bold);
+        lbNameInfo.appendChild(document.createTextNode(". "));
+        const change = document.createElement("button");
+        change.type = "button";
+        change.className = "sell-button";
+        change.textContent = "Change name";
+        change.addEventListener("click", function () {
+          lbRenaming = true;
+          renderLeaderboardPage();
+        });
+        lbNameInfo.appendChild(change);
+        lbNameForm.hidden = true;
+      }
+
+      lbBoards.hidden = !name;
+      if (name) {
+        loadLeaderboards();
+      }
+    }
+
+    lbNameForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      lbNameSave.disabled = true;
+      lbNameStatus.textContent = "Saving...";
+      try {
+        await savePlayerName(lbNameInput.value.trim().replace(/ +/g, " "));
+        lbRenaming = false;
+        renderLeaderboardPage();
+      } catch (error) {
+        lbNameStatus.textContent = error.userMessage || ("Couldn't save your name. " + describeLbError(error));
+        console.error(error);
+      }
+      lbNameSave.disabled = false;
+    });
+    lbNameCancel.addEventListener("click", function () {
+      lbRenaming = false;
+      renderLeaderboardPage();
+    });
+
+    // Fill one leaderboard. "rows" are { name, score } already in order.
+    function fillBoard(list, rows, format) {
+      list.innerHTML = "";
+      if (rows.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "lb-empty";
+        empty.textContent = "No entries yet.";
+        list.appendChild(empty);
+        return;
+      }
+      const me = readPlayerName().toLowerCase();
+      rows.forEach(function (row) {
+        const item = document.createElement("li");
+        if (String(row.name).toLowerCase() === me) {
+          item.className = "me";
+        }
+        item.appendChild(document.createTextNode(row.name));
+        const score = document.createElement("span");
+        score.className = "lb-score";
+        score.textContent = format(row.score);
+        item.appendChild(score);
+        list.appendChild(item);
+      });
+    }
+
+    // Download the three leaderboards (top 20 each).
+    async function loadLeaderboards() {
+      if (!lbConfigured()) {
+        return;
+      }
+      lbStatus.textContent = "Loading...";
+      syncLeaderboard();   // make sure your own latest numbers are in first
+      try {
+        const client = getLbClient();
+        const today = new Date().toISOString().slice(0, 10);   // the UTC date
+        const results = await Promise.all([
+          client.from("daily_packs").select("value, players(name)").eq("pack_date", today)
+            .order("value", { ascending: false }).limit(20),
+          client.from("players").select("name, master_sets").gte("master_sets", 1)
+            .order("master_sets", { ascending: false }).limit(20),
+          client.from("players").select("name, points").gte("points", 1)
+            .order("points", { ascending: false }).limit(20)
+        ]);
+        results.forEach(function (result) {
+          if (result.error) {
+            throw result.error;
+          }
+        });
+        fillBoard(lbPacksList, results[0].data.map(function (row) {
+          return { name: row.players ? row.players.name : "?", score: row.value };
+        }), function (value) { return formatMoney(Number(value), "USD"); });
+        fillBoard(lbSetsList, results[1].data.map(function (row) {
+          return { name: row.name, score: row.master_sets };
+        }), function (count) { return String(count); });
+        fillBoard(lbPointsList, results[2].data.map(function (row) {
+          return { name: row.name, score: row.points };
+        }), function (points) { return fmt(Number(points)); });
+        lbStatus.textContent = "";
+      } catch (error) {
+        console.error(error);
+        lbStatus.textContent = "Couldn't load the leaderboards. " + describeLbError(error);
+      }
+    }
+    lbRefresh.addEventListener("click", loadLeaderboards);
+
     // ---------- Money, selling duplicates, buying packs ----------
 
     // The cards you still own (cards you sold are marked "sold" and hidden).
@@ -3875,6 +4385,7 @@
 
     function updateWallet() {
       walletBox.textContent = "💰 " + formatCents(money);
+      updateBuyAnother();
     }
 
     // The free daily pack: remember which day you opened it.
@@ -3984,10 +4495,17 @@
     // Draw the shop page.
     function renderShop() {
       const setId = shopSet.value;
-      const priced = setId ? packPrices[setId] : null;
-      shopInfo.textContent = "A pack holds " + PACK_SIZE + " cards from the set you choose. Its price is based on the " +
-        "average card price in that set" + (priced ? " (this set: " + formatMoney(priced.avg, "USD") + " per card)" : "") +
-        ". Selling a duplicate pays " + SELL_PERCENT + "% of its TCGplayer price.";
+      const priced = setId ? getPackPrice(setId) : null;
+      let how = "";
+      if (priced && priced.source === "tcgplayer") {
+        how = " This pack is priced from the TCGplayer market price of a booster pack of this set" +
+          (priced.updated ? " (as of " + priced.updated + ")" : "") + ".";
+      } else if (priced) {
+        how = " There's no booster pack price for this set, so it's priced from the average card in the set (" +
+          formatMoney(priced.avg, "USD") + " per card).";
+      }
+      shopInfo.textContent = "A pack holds " + PACK_SIZE + " cards from the set you choose." + how +
+        " Selling a duplicate pays " + SELL_PERCENT + "% of its TCGplayer price.";
 
       // Can you buy right now?
       const faceDown = currentPack.some(function (entry) { return !entry.flipped; });
@@ -4145,27 +4663,16 @@
     const pricingNow = {};               // sets being priced right now
     const setDetailCache = {};           // the set pages we've already downloaded
 
+    // Estimated prices are kept only while the page is open. Nothing is saved, so
+    // every visit uses the latest pack-prices.json first and re-estimates the rest.
+    // (Older versions saved estimates in the browser; we delete those.)
     function loadPackPrices() {
       try {
-        const text = localStorage.getItem(SET_PRICES_KEY);
-        if (text) {
-          const saved = JSON.parse(text);
-          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
-            return saved;
-          }
-        }
+        localStorage.removeItem("setPrices");
       } catch (error) {
         console.error(error);
       }
       return {};
-    }
-
-    function savePackPrices() {
-      try {
-        localStorage.setItem(SET_PRICES_KEY, JSON.stringify(packPrices));
-      } catch (error) {
-        console.error(error);
-      }
     }
 
     // A set's own page lists all of its cards. Download it once.
@@ -4179,11 +4686,52 @@
       return setDetailCache[setId];
     }
 
+    // The booster pack prices from pack-prices.json (null if there is no file).
+    let boosterPrices = null;
+    let boosterPricesLoading = null;
+
+    // Download pack-prices.json once. A missing file is fine: we just estimate.
+    function loadBoosterPrices() {
+      if (!boosterPricesLoading) {
+        boosterPricesLoading = fetch(PACK_PRICES_URL, { cache: "no-cache" })
+          .then(function (response) {
+            return response.ok ? response.json() : null;
+          })
+          .then(function (data) {
+            if (data && data.sets && typeof data.sets === "object") {
+              boosterPrices = data;
+            }
+          })
+          .catch(function (error) {
+            console.log("No pack-prices.json found, so packs are priced by estimate.", error);
+          });
+      }
+      return boosterPricesLoading;
+    }
+
+    // A set's pack price: { cents, source, ... } or null if we don't know it yet.
+    // A real booster pack price wins over an estimate.
+    function getPackPrice(setId) {
+      const real = boosterPrices && boosterPrices.sets[setId];
+      if (real && real.price > 0) {
+        return {
+          cents: Math.max(MIN_PACK_PRICE * 100, Math.round(real.price * 100 * PRICE_MULTIPLIER)),
+          source: "tcgplayer",
+          updated: boosterPrices.updated
+        };
+      }
+      return packPrices[setId] || null;
+    }
+
     // Work out a set's pack price: look at a random sample of its cards,
     // average the TCGplayer price of the ones that have a price, and charge
     // what 7 of those cards would be worth. The answer is remembered.
     async function priceSet(setId) {
-      if (!setId || packPrices[setId] || pricingNow[setId]) {
+      await loadBoosterPrices();
+      if (!setId || getPackPrice(setId) || pricingNow[setId]) {
+        if (!viewShop.hidden) {
+          renderShop();
+        }
         return;
       }
       pricingNow[setId] = true;
@@ -4218,8 +4766,7 @@
         // Round to the nearest quarter, and never below the minimum.
         const cents = Math.max(MIN_PACK_PRICE * 100,
           Math.round(avg * PACK_SIZE * PRICE_MULTIPLIER * 100 / 25) * 25);
-        packPrices[setId] = { avg: Math.round(avg * 100) / 100, cents: cents };
-        savePackPrices();
+        packPrices[setId] = { avg: Math.round(avg * 100) / 100, cents: cents, source: "estimate" };
       } catch (error) {
         console.error(error);
         pricingFailed[setId] = true;
@@ -4228,19 +4775,58 @@
       if (!viewShop.hidden) {
         renderShop();
       }
+      updateBuyAnother();
     }
 
+    // The "Open another" button under a bought pack: buys the same set again.
+    function updateBuyAnother() {
+      const allFlipped = currentPack.length > 0 && currentPack.every(function (entry) {
+        return entry.flipped;
+      });
+      const set = currentPack.length > 0 ? currentPack[0].card.set : null;
+      if (!currentPackBought || !allFlipped || !set) {
+        buyAnother.hidden = true;
+        return;
+      }
+      const price = getPackPrice(set.id);
+      if (!price) {
+        buyAnother.hidden = true;
+        if (!pricingFailed[set.id]) {
+          priceSet(set.id);      // work out the price; this button is updated when it's known
+        }
+        return;
+      }
+      buyAnother.hidden = false;
+      let label = "Open another " + set.name + " pack (" + formatCents(price.cents) + ")";
+      if (money < price.cents) {
+        label += " · need " + formatCents(price.cents - money) + " more";
+      }
+      buyAnother.textContent = label;
+      buyAnother.disabled = shopBusy || money < price.cents;
+    }
+    buyAnother.addEventListener("click", function () {
+      if (currentPack.length > 0 && currentPack[0].card.set) {
+        buyPack(currentPack[0].card.set.id, true);
+      }
+    });
+
     // Buy a pack from the chosen set.
-    async function buyPack() {
-      const setId = shopSet.value;
-      const price = packPrices[setId];     // { avg, cents }, or nothing if not worked out yet
+    // "setIdChoice" is given by "Open another"; the shop page uses its menu.
+    // "fromPackPage" is true when the buy button was on the pack page.
+    async function buyPack(setIdChoice, fromPackPage) {
+      const setId = setIdChoice || shopSet.value;
+      const price = getPackPrice(setId);   // { cents, ... }, or nothing if not worked out yet
       if (!setId || !price || shopBusy || money < price.cents ||
           currentPack.some(function (entry) { return !entry.flipped; })) {
         return;
       }
       shopBusy = true;
       shopStatus.textContent = "Opening your pack...";
+      if (fromPackPage) {
+        statusText.textContent = "Opening your pack...";
+      }
       renderShop();
+      updateBuyAnother();
 
       try {
         // The set's own page lists all of its cards.
@@ -4278,19 +4864,27 @@
         renderCollection();
         renderPack();
         savePack();
-        // Use the set's name, or the name shown in the menu if the set has none.
-        const setName = set.name || shopSet.options[shopSet.selectedIndex].text.replace(/ \(\d+ cards\)$/, "");
+        // Use the set's name, or the card's set name if the set page has none.
+        const setName = set.name || (currentPack[0].card.set ? currentPack[0].card.set.name : "");
         statusText.textContent = "You bought a " + setName + " pack for " + formatCents(price.cents) + ".";
         shopStatus.textContent = "";
         showView("pack");
+        window.scrollTo({ top: 0, behavior: "smooth" });   // the new pack is at the top
       } catch (error) {
-        shopStatus.textContent = error.userMessage || "Couldn't buy a pack. Please try again. You weren't charged.";
+        const message = error.userMessage || "Couldn't buy a pack. Please try again. You weren't charged.";
+        shopStatus.textContent = message;
+        if (fromPackPage) {
+          statusText.textContent = message;
+        }
         console.error(error);
       }
       shopBusy = false;
       renderShop();
+      updateBuyAnother();
     }
-    shopBuy.addEventListener("click", buyPack);
+    shopBuy.addEventListener("click", function () {
+      buyPack();
+    });
 
     // Pick 7 random cards from a list that have a TCGplayer price.
     // We pick random cards, look up their details, and throw away any
@@ -4450,6 +5044,7 @@
     // Your money.
     money = loadMoney();
     updateWallet();
+    loadBoosterPrices().then(updateBuyAnother);   // so "Open another" knows the prices
 
     // Load your earned achievements. Any you've already earned with the cards
     // you have are unlocked quietly, without a pop-up.
