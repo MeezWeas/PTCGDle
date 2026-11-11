@@ -132,6 +132,11 @@
     .gc-actions button { padding: 8px 18px; border: 2px solid #3a3a66; border-radius: 8px; background: #26264a; }
     .gc-actions button.gc-main { border-color: #ffcb05; color: #ffcb05; font-weight: 700; }
     .gc-actions button:disabled, .rl-cell:disabled, .rl-outside button:disabled, .gc-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+    .gc-breakdown { list-style: none; margin: -4px auto 12px; padding: 0; max-width: 420px; font-size: 0.9rem; }
+    .gc-breakdown:empty { display: none; }
+    .gc-breakdown li { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.1)); }
+    .gc-breakdown .won { color: #4ade80; }
+    .gc-breakdown .lost { color: #fb7185; }
     .gc-total { margin-left: auto; font-weight: 700; }
 
     /* The wheel: a ring of 37 pockets that spins under a fixed pointer. */
@@ -1492,6 +1497,7 @@
         The zero pocket loses every Evolved/Unevolved and Fire/Water bet (house edge 2.70%, like European roulette).</p>
       <div class="rl-wheel-wrap"><div id="rl-wheel" class="rl-wheel"></div></div>
       <p id="rl-result" class="gc-result">Place your bets!</p>
+      <ul id="rl-breakdown" class="gc-breakdown"></ul>
 
       <div class="gc-chips" id="rl-chips"></div>
       <div class="rl-scroll">
@@ -2463,12 +2469,62 @@
       return [];
     }
 
-    // Save the collection in the browser.
+    // Browsers only let a site save about 5 MB. A full TCGdex card is several KB (attacks,
+    // descriptions, prices in many currencies...), so a few hundred cards used to fill it up and
+    // the newest cards were silently not saved. We only keep the fields the site actually uses.
+    function slimCard(card) {
+      if (!card || card.slim) {
+        return card;
+      }
+      const slim = {
+        slim: true,
+        id: card.id, localId: card.localId, name: card.name, image: card.image, category: card.category,
+        illustrator: card.illustrator, rarity: card.rarity, variants: card.variants, hp: card.hp,
+        types: card.types, stage: card.stage, retreat: card.retreat, regulationMark: card.regulationMark,
+        trainerType: card.trainerType, energyType: card.energyType
+      };
+      if (Array.isArray(card.attacks)) {
+        slim.attacks = card.attacks.map(function (attack) { return { name: attack.name }; });
+      }
+      if (card.set) {
+        slim.set = { id: card.set.id, name: card.set.name, logo: card.set.logo, cardCount: card.set.cardCount };
+      }
+      if (card.pricing) {
+        slim.pricing = {};
+        const tcg = card.pricing.tcgplayer;
+        if (tcg) {
+          slim.pricing.tcgplayer = { unit: tcg.unit };
+          Object.keys(tcg).forEach(function (key) {
+            const prices = tcg[key];
+            if (prices && typeof prices === "object") {
+              slim.pricing.tcgplayer[key] = { marketPrice: prices.marketPrice, midPrice: prices.midPrice };
+            }
+          });
+        }
+        const cm = card.pricing.cardmarket;
+        if (cm) {
+          slim.pricing.cardmarket = {
+            unit: cm.unit, trend: cm.trend, avg: cm.avg, "trend-holo": cm["trend-holo"], "avg-holo": cm["avg-holo"]
+          };
+        }
+      }
+      return slim;
+    }
+
+    // Save the collection in the browser. If the browser says it's full, tell the player
+    // (once) instead of failing silently.
+    let storageWarned = false;
     function saveCollection() {
       try {
         localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection));
       } catch (error) {
         console.error(error);
+        if (!storageWarned) {
+          storageWarned = true;
+          showNotice("Your collection couldn't be saved",
+            "Your browser's storage is full, so new cards may be lost when you reload. " +
+            "Try clearing other site data in your browser settings.");
+        }
       }
     }
 
@@ -2489,7 +2545,7 @@
       collection.push({
         id: "c" + seq,
         seq: seq,
-        card: entry.card,
+        card: slimCard(entry.card),
         imageUrl: entry.imageUrl,
         variant: entry.variant,
         revealed: entry.flipped === true,
@@ -6183,6 +6239,7 @@
 
     const rlWheelBox = document.getElementById("rl-wheel");
     const rlResult = document.getElementById("rl-result");
+    const rlBreakdown = document.getElementById("rl-breakdown");
     const rlOutsideBox = document.getElementById("rl-outside");
     const rlGridBox = document.getElementById("rl-grid");
     const rlSpinButton = document.getElementById("rl-spin");
@@ -6304,6 +6361,7 @@
         rlSettled = false;
         rlResult.className = "gc-result";
         rlResult.textContent = "Place your bets!";
+        rlBreakdown.innerHTML = "";
         rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
         rlRefresh();
       }
@@ -6350,6 +6408,7 @@
     rlClearButton.addEventListener("click", function () {
       rlBets = {};
       rlSettled = false;
+      rlBreakdown.innerHTML = "";
       rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
       Object.keys(rlBetEls).forEach(function (key) { rlBetEls[key].classList.remove("won"); });
       rlRefresh();
@@ -6369,6 +6428,7 @@
       }
       rlBets = Object.assign({}, rlLastBets);
       rlSettled = false;
+      rlBreakdown.innerHTML = "";
       rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
       Object.keys(rlBetEls).forEach(function (key) { rlBetEls[key].classList.remove("won"); });
       rlRefresh();
@@ -6434,6 +6494,28 @@
       const what = pocket.zero ? "the zero pocket (Igglybuff / Jigglypuff / Wigglytuff)"
         : pocket.name + " (" + pocket.type + ", " + (pocket.evolved ? "Evolved" : "Unevolved") + ")";
       const net = outcome.returned - total;
+
+      // A line for each bet, so you can see which ones paid and which lost.
+      rlBreakdown.innerHTML = "";
+      Object.keys(bets).forEach(function (key) {
+        const won = outcome.wins.indexOf(key) !== -1;
+        const isStraight = key === "zero" || key.indexOf("p:") === 0;
+        let label = key === "zero" ? "Zero pocket" : key.indexOf("p:") === 0 ? key.slice(2) : "";
+        RL_OUTSIDE.forEach(function (outside) {
+          if (outside.key === key) {
+            label = outside.label;
+          }
+        });
+        const item = document.createElement("li");
+        item.className = won ? "won" : "lost";
+        const left = document.createElement("span");
+        left.textContent = label + " (" + formatCents(bets[key]) + ")";
+        const right = document.createElement("span");
+        right.textContent = won ? "+" + formatCents(bets[key] * (isStraight ? 35 : 1)) : "\u2212" + formatCents(bets[key]);
+        item.appendChild(left);
+        item.appendChild(right);
+        rlBreakdown.appendChild(item);
+      });
       rlResult.className = "gc-result " + (net > 0 ? "win" : net < 0 ? "lose" : "");
       rlResult.textContent = "It landed on " + what + ". " +
         (net > 0 ? "You won " + formatCents(net) + "!" : net < 0 ? "You lost " + formatCents(-net) + "." : "You broke even.");
@@ -6757,12 +6839,20 @@
 
     // When the page first loads: load your collection and your sort choice.
     collection = loadCollection();
-    // Remove cards from sets that are no longer in the game.
+    // Remove cards from sets that are no longer in the game, and shrink old saved cards
+    // so the collection fits in the browser's storage.
     const keptItems = collection.filter(function (item) {
       return !isExcludedCard(item.card);
     });
-    if (keptItems.length !== collection.length) {
-      collection = keptItems;
+    let needsSave = keptItems.length !== collection.length;
+    keptItems.forEach(function (item) {
+      if (item.card && !item.card.slim) {
+        item.card = slimCard(item.card);
+        needsSave = true;
+      }
+    });
+    collection = keptItems;
+    if (needsSave) {
       saveCollection();
     }
     try {
