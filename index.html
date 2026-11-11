@@ -108,6 +108,119 @@
     .lb-list li.me { color: #ffcb05; font-weight: 700; }
     .lb-list li small { display: block; font-weight: 400; opacity: 0.7; }
     .lb-empty { list-style: none; margin-left: -28px; opacity: 0.7; }
+    /* ----- Game Corner ----- */
+    #view-gamecorner [hidden] { display: none; }
+    .gc-games { display: flex; gap: 8px; flex-wrap: wrap; }
+    .gc-pick, .gc-actions button, .gc-chip, .rl-outside button, .rl-cell {
+      font: inherit;
+      color: #fff;
+      cursor: pointer;
+    }
+    .gc-pick { padding: 8px 20px; border: 2px solid #3a3a66; border-radius: 999px; background: transparent; }
+    .gc-pick.active { border-color: #ffcb05; color: #ffcb05; }
+    .gc-note { opacity: 0.8; font-size: 0.9rem; line-height: 1.4; }
+    .gc-result { min-height: 1.5em; font-size: 1.15rem; font-weight: 700; text-align: center; margin: 10px 0; }
+    .gc-result.win { color: #3ddc84; }
+    .gc-result.lose { color: #ff5c5c; }
+    .gc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .gc-chip { padding: 6px 14px; border: 2px solid #3a3a66; border-radius: 999px; background: #26264a; }
+    .gc-chip.active { border-color: #ffcb05; background: #3a3a66; color: #ffcb05; font-weight: 700; }
+    .gc-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 0; }
+    .gc-actions button { padding: 8px 18px; border: 2px solid #3a3a66; border-radius: 8px; background: #26264a; }
+    .gc-actions button.gc-main { border-color: #ffcb05; color: #ffcb05; font-weight: 700; }
+    .gc-actions button:disabled, .rl-cell:disabled, .rl-outside button:disabled, .gc-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+    .gc-total { margin-left: auto; font-weight: 700; }
+
+    /* The wheel: a ring of 37 pockets that spins under a fixed pointer. */
+    .rl-wheel-wrap { display: flex; justify-content: center; margin: 14px 0 6px; padding-top: 14px; }
+    .rl-wheel {
+      position: relative; width: 340px; height: 340px; border-radius: 50%;
+      border: 10px solid #5b3a1e; background: #1a1a1a;
+      box-shadow: 0 0 0 4px #c9a227, 0 8px 24px rgba(0, 0, 0, 0.6);
+      transition: transform 5s cubic-bezier(0.12, 0.6, 0.1, 1);
+    }
+    .rl-wheel::before {      /* the pointer (doesn't rotate with the wheel? it does not: see .rl-pointer) */
+      content: ""; position: absolute; inset: 78px; border-radius: 50%;
+      background: radial-gradient(circle, #c9a227 0 12%, #5b3a1e 13% 100%); border: 3px solid #c9a227;
+    }
+    .rl-pocket {
+      position: absolute; left: 50%; top: 0; width: 32px; margin-left: -16px; height: 76px;
+      transform-origin: 50% 160px; border-radius: 4px 4px 14px 14px;
+      display: flex; align-items: flex-start; justify-content: center; padding-top: 2px;
+      border: 1px solid #c9a227; box-sizing: border-box; overflow: hidden; font-size: 0.45rem; color: #fff;
+    }
+    .rl-pocket.evolved { background: #b71c1c; }
+    .rl-pocket.unevolved { background: #111; }
+    .rl-pocket.zero { background: #1b7f3b; }
+    .rl-pocket img { width: 30px; height: 30px; image-rendering: pixelated; }
+    .rl-pocket.zero img { width: 14px; height: 14px; position: absolute; left: 50%; margin-left: -7px; }
+    .rl-pocket.zero img:nth-of-type(1) { top: 2px; }
+    .rl-pocket.zero img:nth-of-type(2) { top: 20px; }
+    .rl-pocket.zero img:nth-of-type(3) { top: 38px; }
+    .rl-pocket.won { box-shadow: 0 0 0 2px #ffcb05, 0 0 14px #ffcb05; z-index: 2; }
+    .rl-pointer {
+      position: absolute; left: 50%; top: -6px; margin-left: -12px; width: 0; height: 0; z-index: 5;
+      border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid #ffcb05;
+      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+    }
+
+    /* The betting table: green felt, zero on the left, 36 Pokémon in 3 rows, outside bets underneath. */
+    .rl-scroll { overflow-x: auto; padding-bottom: 6px; }
+    .rl-board {
+      min-width: 860px; padding: 12px; border: 6px solid #5b3a1e; border-radius: 12px;
+      background: #0b6b3a; box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
+    }
+    .rl-grid { display: grid; grid-template-columns: 78px repeat(12, 1fr); grid-template-rows: repeat(3, 84px); gap: 0; }
+    .rl-outside { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 0 78px; }
+    .rl-cell, .rl-outside button {
+      position: relative; border: 2px solid #f2f2f2; border-radius: 0; margin: -1px 0 0 -1px;
+      color: #fff; font: inherit; cursor: pointer; padding: 2px; font-size: 0.65rem; line-height: 1.1;
+    }
+    .rl-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .rl-cell.evolved { background: #b71c1c; }
+    .rl-cell.unevolved { background: #151515; }
+    .rl-cell.zero { background: #1b7f3b; grid-column: 1; grid-row: 1 / span 3; border-radius: 40px 0 0 40px; font-size: 0.7rem; }
+    .rl-cell img { width: 44px; height: 44px; display: block; image-rendering: pixelated; }
+    .rl-cell.zero img { width: 40px; height: 40px; margin: -6px 0; }
+    .rl-cell .tag { display: block; opacity: 0.85; font-size: 0.6rem; }
+    .rl-cell:hover, .rl-outside button:hover { filter: brightness(1.25); }
+    .rl-outside button { background: #0b6b3a; padding: 14px 6px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.03em; }
+    .rl-outside button.b-evolved { background: #b71c1c; }
+    .rl-outside button.b-unevolved { background: #151515; }
+    .rl-outside small { display: block; opacity: 0.8; font-size: 0.65rem; font-weight: 400; }
+    .rl-cell:disabled, .rl-outside button:disabled { cursor: not-allowed; }
+    .rl-chip {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; min-width: 34px; height: 34px;
+      padding: 0 4px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      background: #ffcb05; color: #1b1b2f; font-weight: 800; font-size: 0.65rem;
+      border: 3px dashed #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+    }
+    .rl-cell.won, .rl-outside button.won { box-shadow: inset 0 0 0 3px #ffcb05, 0 0 14px #ffcb05; z-index: 2; }
+
+    .bj-table { background: #14502f; border: 2px solid #0d3a22; border-radius: 14px; padding: 12px 14px; }
+    .bj-row { margin-bottom: 14px; }
+    .bj-label { display: block; font-weight: 700; margin-bottom: 4px; }
+    .bj-hand { display: flex; gap: 8px; flex-wrap: wrap; min-height: 100px; }
+    .bj-card {
+      width: 68px; height: 96px; border-radius: 8px; background: #fff; color: #111; position: relative;
+      font-weight: 800; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .bj-card.red { color: #c62828; }
+    .bj-card .corner { position: absolute; top: 4px; left: 6px; line-height: 1; font-size: 1.1rem; }
+    .bj-card .mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+    .bj-card.back { border: 3px solid #fff; box-sizing: border-box; overflow: hidden; }
+    .bj-card.back.en { background: radial-gradient(circle at 30% 20%, #4f6bff, #1d2670 70%); }
+    .bj-card.back.jp { background: radial-gradient(circle at 30% 20%, #ff9a3c, #a83200 70%); }
+    .bj-card.back::before {
+      content: ""; position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px;
+      border-radius: 50%; border: 3px solid #111;
+      background: linear-gradient(#e53935 0 44%, #111 44% 56%, #f5f5f5 56%);
+    }
+    .bj-card.back::after {
+      content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+      border-radius: 50%; border: 3px solid #111; background: #f5f5f5; box-sizing: border-box;
+    }
+    .bj-card.back .kana { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; color: #fff; font-size: 0.6rem; font-weight: 700; }
     #buy-another {
       position: relative;
       z-index: 2;
@@ -813,6 +926,7 @@
     <button class="tab-button" id="tab-sets" type="button">Master Set Collection (<span id="set-count">0</span>)</button>
     <button class="tab-button" id="tab-shop" type="button">Duplicates &amp; Shop (<span id="shop-count">0</span>)</button>
     <button class="tab-button" id="tab-leaderboard" type="button">Leaderboard</button>
+    <button class="tab-button" id="tab-gamecorner" type="button">Game Corner</button>
 
   </nav>
 
@@ -951,6 +1065,73 @@
     </div>
   </section>
 
+
+  <!-- PAGE 7: the Game Corner (casino games played with your wallet money). -->
+  <section id="view-gamecorner" hidden>
+    <div class="shop-box">
+      <h2>🎰 Game Corner</h2>
+      <p>Bet your wallet money on a game. Winnings are added to your wallet right away. Play for fun and only bet what you don't need for packs!</p>
+      <div class="gc-games">
+        <button type="button" id="gc-pick-roulette" class="gc-pick active">Roulette</button>
+        <button type="button" id="gc-pick-blackjack" class="gc-pick">Blackjack</button>
+      </div>
+    </div>
+
+    <!-- ROULETTE -->
+    <div class="shop-box" id="gc-roulette">
+      <h2>Pokémon Roulette</h2>
+      <p class="gc-note">Bet limit: $1,000 per spin, in total. 37 pockets: 36 Pokémon and one Jigglypuff-line "zero" pocket. Place bets, then spin.
+        Straight-up (one Pokémon) pays 35 to 1. Evolved / Unevolved and Fire / Water pay 1 to 1.
+        The zero pocket loses every Evolved/Unevolved and Fire/Water bet (house edge 2.70%, like European roulette).</p>
+      <div class="rl-wheel-wrap"><div id="rl-wheel" class="rl-wheel"></div></div>
+      <p id="rl-result" class="gc-result">Place your bets!</p>
+
+      <div class="gc-chips" id="rl-chips"></div>
+      <div class="rl-scroll">
+        <div class="rl-board">
+          <div class="rl-grid" id="rl-grid"></div>
+          <div class="rl-outside" id="rl-outside"></div>
+        </div>
+      </div>
+
+      <div class="gc-actions">
+        <button type="button" id="rl-spin" class="gc-main">Spin</button>
+        <button type="button" id="rl-rebet">Repeat last bets</button>
+        <button type="button" id="rl-clear">Clear bets</button>
+        <span id="rl-total" class="gc-total"></span>
+      </div>
+    </div>
+
+    <!-- BLACKJACK -->
+    <div class="shop-box" id="gc-blackjack" hidden>
+      <h2>Pokémon Blackjack</h2>
+      <p class="gc-note">Bet limit: $1,000 per hand. One deck, shuffled before every hand. Blackjack pays 3 to 2, other wins pay 1 to 1.
+        The dealer hits on 16 or less and stands on every 17. You can Hit, Stand, or Double Down on your first two cards.</p>
+      <div class="bj-table">
+        <div class="bj-row"><span class="bj-label">Dealer <span id="bj-dealer-total"></span></span><div id="bj-dealer" class="bj-hand"></div></div>
+        <div class="bj-row"><span class="bj-label">You <span id="bj-player-total"></span></span><div id="bj-player" class="bj-hand"></div></div>
+      </div>
+      <p id="bj-result" class="gc-result">Choose your bet and deal.</p>
+      <p id="bj-back-info" class="gc-note"></p>
+
+      <div id="bj-bet-area">
+        <div class="gc-chips" id="bj-chips"></div>
+        <div class="gc-actions">
+          <button type="button" id="bj-deal" class="gc-main">Deal</button>
+          <button type="button" id="bj-rebet">Repeat last bet</button>
+          <button type="button" id="bj-clear">Clear bet</button>
+          <span id="bj-bet-total" class="gc-total"></span>
+        </div>
+      </div>
+      <div id="bj-play-area" class="gc-actions" hidden>
+        <button type="button" id="bj-hit" class="gc-main">Hit</button>
+        <button type="button" id="bj-stand" class="gc-main">Stand</button>
+        <button type="button" id="bj-double">Double down</button>
+        <span id="bj-bet-now" class="gc-total"></span>
+      </div>
+    </div>
+  </section>
+
   <!-- The enlarged card pop-up. It stays hidden until a flipped card is clicked. -->
   <div id="modal" hidden>
     <div id="modal-content">
@@ -1072,6 +1253,8 @@
     const lbBoughtList = document.getElementById("lb-bought");
     const tabLeaderboard = document.getElementById("tab-leaderboard");
     const viewLeaderboard = document.getElementById("view-leaderboard");
+    const tabGameCorner = document.getElementById("tab-gamecorner");
+    const viewGameCorner = document.getElementById("view-gamecorner");
     const lbNameInfo = document.getElementById("lb-name-info");
     const lbNameForm = document.getElementById("lb-name-form");
     const lbNameInput = document.getElementById("lb-name-input");
@@ -2170,12 +2353,14 @@
       viewSets.hidden = name !== "sets";
       viewShop.hidden = name !== "shop";
       viewLeaderboard.hidden = name !== "leaderboard";
+      viewGameCorner.hidden = name !== "gamecorner";
       tabPack.classList.toggle("active", name === "pack");
       tabCollection.classList.toggle("active", name === "collection");
       tabAchievements.classList.toggle("active", name === "achievements");
       tabSets.classList.toggle("active", name === "sets");
       tabShop.classList.toggle("active", name === "shop");
       tabLeaderboard.classList.toggle("active", name === "leaderboard");
+      tabGameCorner.classList.toggle("active", name === "gamecorner");
 
       // Redraw a page each time you visit it, so it's always current.
       if (name === "collection") {
@@ -2193,6 +2378,9 @@
       }
       if (name === "leaderboard") {
         renderLeaderboardPage();
+      }
+      if (name === "gamecorner") {
+        renderGameCorner();
       }
     }
 
@@ -2213,6 +2401,9 @@
     });
     tabLeaderboard.addEventListener("click", function () {
       showView("leaderboard");
+    });
+    tabGameCorner.addEventListener("click", function () {
+      showView("gamecorner");
     });
 
     // Re-sort the collection (and remember the choice) when the menu changes.
@@ -5480,6 +5671,665 @@
       openPack(true);
     });
 
+    // ===================== The Game Corner =====================
+
+    const gcRoulette = document.getElementById("gc-roulette");
+    const gcBlackjack = document.getElementById("gc-blackjack");
+    const gcPickRoulette = document.getElementById("gc-pick-roulette");
+    const gcPickBlackjack = document.getElementById("gc-pick-blackjack");
+
+    // Chip sizes in cents. Every bet is a multiple of 10 cents, so blackjack's 3-to-2 never splits a cent.
+    const GC_CHIPS = [10, 50, 100, 500, 2500, 10000];
+    let gcChip = 100;          // the chip size you're betting with
+    const GC_MAX_BET = 100000; // the most you can bet in one spin or one hand: $1,000
+    const GC_MAX_TEXT = "The most you can bet is " + "$1,000" + ".";
+
+    // A fair random whole number from 0 to n-1.
+    function gcRandom(n) {
+      const buffer = new Uint32Array(1);
+      const limit = Math.floor(4294967296 / n) * n;   // throw away values that would favor small numbers
+      let value;
+      do {
+        crypto.getRandomValues(buffer);
+        value = buffer[0];
+      } while (value >= limit);
+      return value % n;
+    }
+
+    function gcSleep(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    function gcSprite(id) {
+      return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png";
+    }
+
+    function gcPick(game) {
+      gcRoulette.hidden = game !== "roulette";
+      gcBlackjack.hidden = game !== "blackjack";
+      gcPickRoulette.classList.toggle("active", game === "roulette");
+      gcPickBlackjack.classList.toggle("active", game === "blackjack");
+    }
+    gcPickRoulette.addEventListener("click", function () { gcPick("roulette"); });
+    gcPickBlackjack.addEventListener("click", function () { gcPick("blackjack"); });
+
+    // Chip buttons (shared by both games).
+    function gcBuildChips(container) {
+      container.innerHTML = "";
+      GC_CHIPS.forEach(function (cents) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "gc-chip";
+        button.dataset.cents = cents;
+        button.textContent = formatCents(cents);
+        button.addEventListener("click", function () {
+          gcChip = cents;
+          gcRefreshChips();
+        });
+        container.appendChild(button);
+      });
+    }
+    function gcRefreshChips() {
+      document.querySelectorAll(".gc-chip").forEach(function (button) {
+        button.classList.toggle("active", Number(button.dataset.cents) === gcChip);
+      });
+    }
+
+    // ---------------- Roulette ----------------
+
+    // Names and Pokédex numbers. 9 of each kind: 9 x 4 = 36 Pokémon.
+    const RL_GROUPS = {
+      fireEvolved: [["Charmeleon", 5], ["Charizard", 6], ["Ninetales", 38], ["Arcanine", 59], ["Rapidash", 78],
+        ["Quilava", 156], ["Typhlosion", 157], ["Combusken", 256], ["Blaziken", 257]],
+      fireUnevolved: [["Charmander", 4], ["Vulpix", 37], ["Growlithe", 58], ["Ponyta", 77], ["Cyndaquil", 155],
+        ["Slugma", 218], ["Torchic", 255], ["Numel", 322], ["Chimchar", 390]],
+      waterEvolved: [["Wartortle", 8], ["Blastoise", 9], ["Golduck", 55], ["Poliwhirl", 61], ["Seadra", 117],
+        ["Gyarados", 130], ["Croconaw", 159], ["Feraligatr", 160], ["Marshtomp", 259]],
+      waterUnevolved: [["Squirtle", 7], ["Psyduck", 54], ["Poliwag", 60], ["Horsea", 116], ["Magikarp", 129],
+        ["Totodile", 158], ["Wooper", 194], ["Mudkip", 258], ["Piplup", 393]]
+    };
+    // The "zero" pocket: the Jigglypuff family.
+    const RL_ZERO = { key: "zero", zero: true, name: "Igglybuff / Jigglypuff / Wigglytuff",
+      sprites: [[ "Igglybuff", 174 ], [ "Jigglypuff", 39 ], [ "Wigglytuff", 40 ]] };
+
+    // The wheel: zero first, then the Pokémon mixed so the groups alternate.
+    const RL_WHEEL = (function () {
+      const wheel = [RL_ZERO];
+      function make(entry, type, evolved) {
+        return { key: "p:" + entry[0], name: entry[0], id: entry[1], type: type, evolved: evolved };
+      }
+      for (let i = 0; i < 9; i++) {
+        wheel.push(make(RL_GROUPS.fireEvolved[i], "Fire", true));
+        wheel.push(make(RL_GROUPS.waterUnevolved[i], "Water", false));
+        wheel.push(make(RL_GROUPS.fireUnevolved[i], "Fire", false));
+        wheel.push(make(RL_GROUPS.waterEvolved[i], "Water", true));
+      }
+      return wheel;
+    })();
+
+    const RL_OUTSIDE = [
+      { key: "evolved", label: "Evolved", test: function (p) { return p.evolved === true; } },
+      { key: "unevolved", label: "Unevolved", test: function (p) { return p.evolved === false; } },
+      { key: "fire", label: "Fire type", test: function (p) { return p.type === "Fire"; } },
+      { key: "water", label: "Water type", test: function (p) { return p.type === "Water"; } }
+    ];
+
+    const rlWheelBox = document.getElementById("rl-wheel");
+    const rlResult = document.getElementById("rl-result");
+    const rlOutsideBox = document.getElementById("rl-outside");
+    const rlGridBox = document.getElementById("rl-grid");
+    const rlSpinButton = document.getElementById("rl-spin");
+    const rlRebetButton = document.getElementById("rl-rebet");
+    const rlClearButton = document.getElementById("rl-clear");
+    const rlTotalText = document.getElementById("rl-total");
+
+    let rlBets = {};          // key -> cents
+    let rlLastBets = {};
+    let rlSpinning = false;
+    let rlRotation = 0;       // how far the wheel has turned (degrees)
+    const rlPocketEls = [];   // the wheel's little circles, in order
+    const rlBetEls = {};      // key -> the button you click to bet there
+
+    function rlImage(id, name) {
+      const img = document.createElement("img");
+      img.src = gcSprite(id);
+      img.alt = name;
+      img.title = name;
+      img.loading = "lazy";
+      // If the picture can't load, show the name instead.
+      img.addEventListener("error", function () {
+        const label = document.createElement("span");
+        label.textContent = name;
+        label.style.fontSize = "0.6rem";
+        if (img.parentNode) {
+          img.parentNode.replaceChild(label, img);
+        }
+      });
+      return img;
+    }
+
+    function rlTotalBet() {
+      let total = 0;
+      Object.keys(rlBets).forEach(function (key) { total += rlBets[key]; });
+      return total;
+    }
+
+    function rlBuild() {
+      gcBuildChips(document.getElementById("rl-chips"));
+      gcRefreshChips();
+
+      // The wheel: pockets spread around a circle, with a fixed pointer at the top.
+      const step = 360 / RL_WHEEL.length;
+      RL_WHEEL.forEach(function (pocket, i) {
+        const el = document.createElement("div");
+        el.className = "rl-pocket " + (pocket.zero ? "zero" : pocket.evolved ? "evolved" : "unevolved");
+        el.style.transform = "rotate(" + (i * step) + "deg)";
+        el.title = pocket.name;
+        if (pocket.zero) {
+          pocket.sprites.forEach(function (s) { el.appendChild(rlImage(s[1], s[0])); });
+        } else {
+          el.appendChild(rlImage(pocket.id, pocket.name));
+        }
+        rlWheelBox.appendChild(el);
+        rlPocketEls.push(el);
+      });
+      const pointer = document.createElement("div");
+      pointer.className = "rl-pointer";
+      rlWheelBox.parentNode.appendChild(pointer);
+      rlWheelBox.parentNode.style.position = "relative";
+      pointer.style.top = "8px";
+
+      // Outside bets, under the board.
+      RL_OUTSIDE.forEach(function (bet) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "b-" + bet.key;
+        button.innerHTML = bet.label + "<small>pays 1 to 1</small>";
+        button.addEventListener("click", function () { rlAddBet(bet.key); });
+        rlOutsideBox.appendChild(button);
+        rlBetEls[bet.key] = button;
+      });
+
+      // The board: zero on the left, then the 36 Pokémon in 3 rows of 12 (filled down each column).
+      const zeroButton = document.createElement("button");
+      zeroButton.type = "button";
+      zeroButton.className = "rl-cell zero";
+      RL_ZERO.sprites.forEach(function (s) { zeroButton.appendChild(rlImage(s[1], s[0])); });
+      zeroButton.appendChild(document.createTextNode("Zero"));
+      const zeroTag = document.createElement("span");
+      zeroTag.className = "tag";
+      zeroTag.textContent = "35 to 1";
+      zeroButton.appendChild(zeroTag);
+      zeroButton.addEventListener("click", function () { rlAddBet("zero"); });
+      rlGridBox.appendChild(zeroButton);
+      rlBetEls.zero = zeroButton;
+
+      RL_WHEEL.slice(1).forEach(function (pocket, i) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "rl-cell " + (pocket.evolved ? "evolved" : "unevolved");
+        button.style.gridColumn = String(Math.floor(i / 3) + 2);
+        button.style.gridRow = String((i % 3) + 1);
+        button.appendChild(rlImage(pocket.id, pocket.name));
+        button.appendChild(document.createTextNode(pocket.name));
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = (pocket.type === "Fire" ? "🔥 " : "💧 ") + pocket.type;
+        button.appendChild(tag);
+        button.addEventListener("click", function () { rlAddBet(pocket.key); });
+        rlGridBox.appendChild(button);
+        rlBetEls[pocket.key] = button;
+      });
+      rlRefresh();
+    }
+
+    function rlAddBet(key) {
+      if (rlSpinning) {
+        return;
+      }
+      if (rlTotalBet() + gcChip > GC_MAX_BET) {
+        rlResult.className = "gc-result lose";
+        rlResult.textContent = GC_MAX_TEXT + " (That's the total across all your bets on the board.)";
+        return;
+      }
+      if (rlTotalBet() + gcChip > money) {
+        rlResult.className = "gc-result lose";
+        rlResult.textContent = money <= 0
+          ? "You have no money. Sell duplicates in the Duplicates & Shop tab."
+          : "You can't bet more than you have (" + formatCents(money) + ").";
+        return;
+      }
+      rlBets[key] = (rlBets[key] || 0) + gcChip;
+      rlRefresh();
+    }
+
+    function rlRefresh() {
+      Object.keys(rlBetEls).forEach(function (key) {
+        const el = rlBetEls[key];
+        const old = el.querySelector(".rl-chip");
+        if (old) {
+          old.remove();
+        }
+        el.classList.remove("won");
+        if (rlBets[key]) {
+          const chip = document.createElement("span");
+          chip.className = "rl-chip";
+          chip.textContent = formatCents(rlBets[key]);
+          el.appendChild(chip);
+        }
+      });
+      const total = rlTotalBet();
+      rlTotalText.textContent = total > 0 ? "Total bet: " + formatCents(total) : "";
+      rlSpinButton.disabled = rlSpinning || total <= 0;
+      rlClearButton.disabled = rlSpinning || total <= 0;
+      rlRebetButton.disabled = rlSpinning || Object.keys(rlLastBets).length === 0;
+    }
+
+    rlClearButton.addEventListener("click", function () {
+      rlBets = {};
+      rlRefresh();
+    });
+    rlRebetButton.addEventListener("click", function () {
+      let total = 0;
+      Object.keys(rlLastBets).forEach(function (key) { total += rlLastBets[key]; });
+      if (total > GC_MAX_BET) {
+        rlResult.className = "gc-result lose";
+        rlResult.textContent = GC_MAX_TEXT;
+        return;
+      }
+      if (total > money) {
+        rlResult.className = "gc-result lose";
+        rlResult.textContent = "You don't have enough to repeat those bets (" + formatCents(total) + ").";
+        return;
+      }
+      rlBets = Object.assign({}, rlLastBets);
+      rlRefresh();
+    });
+
+    // Work out the result of a spin: returns { pocket, returned (cents), wins: [keys] }.
+    function rlSettle(pocketIndex, bets) {
+      const pocket = RL_WHEEL[pocketIndex];
+      let returned = 0;
+      const wins = [];
+      Object.keys(bets).forEach(function (key) {
+        if (key === pocket.key) {
+          returned += bets[key] * 36;            // straight up: 35 to 1 (plus your bet back)
+          wins.push(key);
+          return;
+        }
+        RL_OUTSIDE.forEach(function (outside) {
+          if (outside.key === key && !pocket.zero && outside.test(pocket)) {
+            returned += bets[key] * 2;           // 1 to 1
+            wins.push(key);
+          }
+        });
+      });
+      return { pocket: pocket, returned: returned, wins: wins };
+    }
+
+    rlSpinButton.addEventListener("click", async function () {
+      const total = rlTotalBet();
+      if (rlSpinning || total <= 0 || total > money || total > GC_MAX_BET) {
+        return;
+      }
+      rlSpinning = true;
+      const bets = Object.assign({}, rlBets);
+
+      // Decide the result and pay out first (so reloading mid-spin can't dodge a loss).
+      const index = gcRandom(RL_WHEEL.length);
+      const outcome = rlSettle(index, bets);
+      money = money - total + outcome.returned;
+      saveMoney();               // (the wallet display updates after the animation, so it doesn't spoil it)
+      rlLastBets = bets;
+      rlBets = {};
+      rlRefresh();
+      rlResult.className = "gc-result";
+      rlResult.textContent = "Spinning...";
+
+      // Just for show: the wheel spins and slows down with the winning pocket under the pointer.
+      rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
+      const stepDegrees = 360 / RL_WHEEL.length;
+      let target = Math.ceil(rlRotation / 360) * 360 + 360 * 5 - index * stepDegrees;
+      while (target <= rlRotation + 1440) {
+        target += 360;
+      }
+      rlRotation = target;
+      rlWheelBox.style.transform = "rotate(" + target + "deg)";
+      await gcSleep(5200);
+      rlPocketEls[index].classList.add("won");
+
+      // Show what happened.
+      Object.keys(bets).forEach(function (key) {
+        rlBetEls[key].classList.toggle("won", outcome.wins.indexOf(key) !== -1);
+      });
+      const pocket = outcome.pocket;
+      const what = pocket.zero ? "the zero pocket (Igglybuff / Jigglypuff / Wigglytuff)"
+        : pocket.name + " (" + pocket.type + ", " + (pocket.evolved ? "Evolved" : "Unevolved") + ")";
+      const net = outcome.returned - total;
+      rlResult.className = "gc-result " + (net > 0 ? "win" : net < 0 ? "lose" : "");
+      rlResult.textContent = "It landed on " + what + ". " +
+        (net > 0 ? "You won " + formatCents(net) + "!" : net < 0 ? "You lost " + formatCents(-net) + "." : "You broke even.");
+      rlSpinning = false;
+      updateWallet();
+      // Keep the chips on the board shown as "won" until the next bet; rlRefresh would clear the glow.
+      rlSpinButton.disabled = true;
+      rlClearButton.disabled = true;
+      rlRebetButton.disabled = false;
+    });
+
+    // ---------------- Blackjack ----------------
+
+    const BJ_KEY = "bjState";
+    const bjDealerBox = document.getElementById("bj-dealer");
+    const bjPlayerBox = document.getElementById("bj-player");
+    const bjDealerTotal = document.getElementById("bj-dealer-total");
+    const bjPlayerTotal = document.getElementById("bj-player-total");
+    const bjResult = document.getElementById("bj-result");
+    const bjBackInfo = document.getElementById("bj-back-info");
+    const bjBetArea = document.getElementById("bj-bet-area");
+    const bjPlayArea = document.getElementById("bj-play-area");
+    const bjDealButton = document.getElementById("bj-deal");
+    const bjRebetButton = document.getElementById("bj-rebet");
+    const bjClearButton = document.getElementById("bj-clear");
+    const bjBetTotal = document.getElementById("bj-bet-total");
+    const bjBetNow = document.getElementById("bj-bet-now");
+    const bjHitButton = document.getElementById("bj-hit");
+    const bjStandButton = document.getElementById("bj-stand");
+    const bjDoubleButton = document.getElementById("bj-double");
+
+    // phase: "bet" (choosing a bet), "play" (your turn), "dealer" (dealer's turn), "done" (hand over).
+    let bj = { phase: "bet", deck: [], player: [], dealer: [], bet: 0, back: "en", message: "", tone: "", lastBet: 0, pending: 0 };
+    let bjBusy = false;
+
+    function bjSave() {
+      try {
+        localStorage.setItem(BJ_KEY, JSON.stringify(bj));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function bjLoad() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(BJ_KEY));
+        if (saved && typeof saved === "object" && Array.isArray(saved.player) && Array.isArray(saved.dealer) &&
+            Array.isArray(saved.deck)) {
+          bj = Object.assign(bj, saved);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // A fresh, shuffled 52-card deck.
+    function bjNewDeck() {
+      const deck = [];
+      ["♠", "♥", "♦", "♣"].forEach(function (suit) {
+        ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"].forEach(function (rank) {
+          deck.push({ r: rank, s: suit });
+        });
+      });
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = gcRandom(i + 1);
+        const swap = deck[i];
+        deck[i] = deck[j];
+        deck[j] = swap;
+      }
+      return deck;
+    }
+
+    function bjValue(hand) {
+      let total = 0;
+      let aces = 0;
+      hand.forEach(function (card) {
+        if (card.r === "A") {
+          aces++;
+          total += 11;
+        } else if (card.r === "J" || card.r === "Q" || card.r === "K" || card.r === "10") {
+          total += 10;
+        } else {
+          total += Number(card.r);
+        }
+      });
+      while (total > 21 && aces > 0) {   // an ace counts as 1 instead of 11 if needed
+        total -= 10;
+        aces--;
+      }
+      return total;
+    }
+
+    function bjIsBlackjack(hand) {
+      return hand.length === 2 && bjValue(hand) === 21;
+    }
+
+    function bjCardEl(card, faceDown) {
+      const el = document.createElement("div");
+      if (faceDown) {
+        el.className = "bj-card back " + bj.back;
+        if (bj.back === "jp") {
+          const kana = document.createElement("span");
+          kana.className = "kana";
+          kana.textContent = "ポケモン";
+          el.appendChild(kana);
+        }
+        return el;
+      }
+      el.className = "bj-card" + (card.s === "♥" || card.s === "♦" ? " red" : "");
+      const corner = document.createElement("span");
+      corner.className = "corner";
+      corner.textContent = card.r + card.s;
+      const mid = document.createElement("span");
+      mid.className = "mid";
+      mid.textContent = card.s;
+      el.appendChild(corner);
+      el.appendChild(mid);
+      return el;
+    }
+
+    function bjRender() {
+      const hideHole = bj.phase === "play";   // the dealer's second card stays face down on your turn
+      bjDealerBox.innerHTML = "";
+      bj.dealer.forEach(function (card, i) {
+        bjDealerBox.appendChild(bjCardEl(card, hideHole && i === 1));
+      });
+      bjPlayerBox.innerHTML = "";
+      bj.player.forEach(function (card) {
+        bjPlayerBox.appendChild(bjCardEl(card, false));
+      });
+      bjDealerTotal.textContent = bj.dealer.length === 0 ? "" :
+        "(" + (hideHole ? bjValue([bj.dealer[0]]) + " showing" : bjValue(bj.dealer)) + ")";
+      bjPlayerTotal.textContent = bj.player.length === 0 ? "" : "(" + bjValue(bj.player) + ")";
+
+      const choosing = bj.phase === "bet" || bj.phase === "done";
+      bjBetArea.hidden = !choosing;
+      bjPlayArea.hidden = choosing;
+      bjResult.className = "gc-result " + (bj.tone || "");
+      bjResult.textContent = bj.message || "Choose your bet and deal.";
+      bjBackInfo.textContent = bj.player.length > 0
+        ? "Card back this hand: " + (bj.back === "jp" ? "Japanese" : "English") : "";
+
+      bjBetTotal.textContent = bj.pending > 0 ? "Bet: " + formatCents(bj.pending) : "";
+      bjDealButton.disabled = bjBusy || bj.pending <= 0 || bj.pending > money;
+      bjClearButton.disabled = bjBusy || bj.pending <= 0;
+      bjRebetButton.disabled = bjBusy || !(bj.lastBet > 0);
+      bjBetNow.textContent = "Bet: " + formatCents(bj.bet);
+      const canAct = bj.phase === "play" && !bjBusy;
+      bjHitButton.disabled = !canAct;
+      bjStandButton.disabled = !canAct;
+      bjDoubleButton.disabled = !canAct || bj.player.length !== 2 || money < bj.bet;
+    }
+
+    document.getElementById("bj-chips").addEventListener("click", function (event) {
+      const button = event.target.closest(".gc-chip");
+      if (!button || bjBusy || (bj.phase !== "bet" && bj.phase !== "done")) {
+        return;
+      }
+      if (bj.pending + gcChip > GC_MAX_BET) {
+        bj.message = GC_MAX_TEXT;
+        bj.tone = "lose";
+      } else if (bj.pending + gcChip > money) {
+        bj.message = money <= 0 ? "You have no money. Sell duplicates in the Duplicates & Shop tab."
+          : "You can't bet more than you have (" + formatCents(money) + ").";
+        bj.tone = "lose";
+      } else {
+        bj.pending += gcChip;
+      }
+      bjRender();
+    });
+    bjClearButton.addEventListener("click", function () {
+      bj.pending = 0;
+      bjRender();
+    });
+    bjRebetButton.addEventListener("click", function () {
+      if (bj.lastBet > money) {
+        bj.message = "You don't have enough to repeat that bet (" + formatCents(bj.lastBet) + ").";
+        bj.tone = "lose";
+      } else {
+        bj.pending = bj.lastBet;
+      }
+      bjRender();
+    });
+
+    // Hand over: pay out. "multiplier" is how many times your bet comes back (2 = win, 1 = push, 0 = lose, 2.5 = blackjack).
+    function bjFinish(multiplier, message) {
+      const paid = Math.round(bj.bet * multiplier);
+      money += paid;
+      saveMoney();
+      updateWallet();
+      const net = paid - bj.bet;
+      bj.phase = "done";
+      bj.lastBet = bj.bet > 0 ? bj.bet : bj.lastBet;
+      bj.message = message + " " + (net > 0 ? "You won " + formatCents(net) + "!"
+        : net < 0 ? "You lost " + formatCents(-net) + "." : "Your bet is returned.");
+      bj.tone = net > 0 ? "win" : net < 0 ? "lose" : "";
+      bj.pending = 0;
+      bjBusy = false;
+      bjSave();
+      bjRender();
+    }
+
+    bjDealButton.addEventListener("click", function () {
+      if (bjBusy || bj.pending <= 0 || bj.pending > money || bj.pending > GC_MAX_BET || (bj.phase !== "bet" && bj.phase !== "done")) {
+        return;
+      }
+      // Pay the bet now and save, so closing the page can't undo it.
+      money -= bj.pending;
+      saveMoney();
+      updateWallet();
+      bj.bet = bj.pending;
+      bj.lastBet = bj.pending;
+      bj.pending = 0;
+      bj.deck = bjNewDeck();            // a new shuffle for every hand
+      bj.back = gcRandom(2) === 0 ? "en" : "jp";
+      bj.player = [bj.deck.pop(), bj.deck.pop()];
+      bj.dealer = [bj.deck.pop(), bj.deck.pop()];
+      bj.message = "";
+      bj.tone = "";
+      bj.phase = "play";
+
+      // Naturals. The dealer peeks for blackjack when showing an ace or a ten-value card.
+      const playerNatural = bjIsBlackjack(bj.player);
+      const dealerNatural = bjIsBlackjack(bj.dealer);
+      if (playerNatural || dealerNatural) {
+        bj.phase = "dealer";   // reveals the dealer's cards
+        if (playerNatural && dealerNatural) {
+          bjFinish(1, "Both have blackjack. Push!");
+        } else if (playerNatural) {
+          bjFinish(2.5, "Blackjack! Pays 3 to 2.");
+        } else {
+          bjFinish(0, "Dealer has blackjack.");
+        }
+        return;
+      }
+      bjSave();
+      bjRender();
+    });
+
+    function bjHit() {
+      if (bjBusy || bj.phase !== "play") {
+        return;
+      }
+      bj.player.push(bj.deck.pop());
+      const total = bjValue(bj.player);
+      if (total > 21) {
+        bj.phase = "dealer";
+        bjFinish(0, "Bust with " + total + ".");
+      } else if (total === 21) {
+        bjStand();
+      } else {
+        bjSave();
+        bjRender();
+      }
+    }
+
+    async function bjStand() {
+      if (bjBusy || (bj.phase !== "play" && bj.phase !== "dealer")) {
+        return;
+      }
+      bjBusy = true;
+      bj.phase = "dealer";
+      bjSave();
+      bjRender();
+      // The dealer hits on 16 or less and stands on every 17.
+      while (bjValue(bj.dealer) < 17) {
+        await gcSleep(600);
+        bj.dealer.push(bj.deck.pop());
+        bjSave();
+        bjRender();
+      }
+      await gcSleep(400);
+      const you = bjValue(bj.player);
+      const dealer = bjValue(bj.dealer);
+      if (dealer > 21) {
+        bjFinish(2, "Dealer busts with " + dealer + ".");
+      } else if (you > dealer) {
+        bjFinish(2, "You have " + you + " to the dealer's " + dealer + ".");
+      } else if (you < dealer) {
+        bjFinish(0, "Dealer wins " + dealer + " to " + you + ".");
+      } else {
+        bjFinish(1, "Push at " + you + ".");
+      }
+    }
+
+    function bjDouble() {
+      if (bjBusy || bj.phase !== "play" || bj.player.length !== 2 || money < bj.bet) {
+        return;
+      }
+      money -= bj.bet;
+      saveMoney();
+      updateWallet();
+      bj.bet *= 2;
+      bj.player.push(bj.deck.pop());
+      const total = bjValue(bj.player);
+      if (total > 21) {
+        bj.phase = "dealer";
+        bjFinish(0, "Bust with " + total + " after doubling.");
+      } else {
+        bjStand();
+      }
+    }
+
+    bjHitButton.addEventListener("click", bjHit);
+    bjStandButton.addEventListener("click", bjStand);
+    bjDoubleButton.addEventListener("click", bjDouble);
+
+    function gcStart() {
+      rlBuild();
+      gcBuildChips(document.getElementById("bj-chips"));
+      gcRefreshChips();
+      bjLoad();
+      bjRender();
+      if (bj.phase === "dealer") {
+        bjStand();     // the page was closed during the dealer's turn: finish it
+      }
+    }
+
+    // Called when you open the Game Corner tab.
+    function renderGameCorner() {
+      rlRefresh();
+      bjRender();
+    }
+
     // When the page first loads: load your collection and your sort choice.
     collection = loadCollection();
     // Remove cards from sets that are no longer in the game.
@@ -5536,6 +6386,7 @@
     // Your money.
     money = loadMoney();
     updateWallet();
+    gcStart();   // set up the Game Corner
     loadBoosterPrices().then(updateBuyAnother);   // so "Open another" knows the prices
 
     // Load your earned achievements. Any you've already earned with the cards
