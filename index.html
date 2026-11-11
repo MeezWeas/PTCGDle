@@ -239,7 +239,7 @@
     }
 
     /* The pack summary under the pack */
-    #pack-summary {
+    #pack-summary, #pack-value {
       position: relative;
       z-index: 2;
       max-width: 560px;
@@ -250,7 +250,15 @@
       background: #26264a;
       animation: toast-in 0.4s ease-out;
     }
-    #pack-summary[hidden] { display: none; }
+    #pack-summary[hidden], #pack-value[hidden] { display: none; }
+    #pack-value { margin-bottom: -14px; }
+    #pack-value h2 { margin: 0 0 6px; font-size: 1rem; color: #ffcb05; text-transform: uppercase; letter-spacing: 0.05em; }
+    .value-total { font-size: 2rem; font-weight: 800; }
+    .value-paid { opacity: 0.85; margin-top: 2px; }
+    .value-result { display: inline-block; margin-top: 8px; padding: 4px 14px; border-radius: 999px; font-size: 1.1rem; font-weight: 800; }
+    .value-profit { color: #3ddc84; border: 2px solid #3ddc84; background: rgba(61, 220, 132, 0.12); }
+    .value-loss { color: #ff5c5c; border: 2px solid #ff5c5c; background: rgba(255, 92, 92, 0.12); }
+    .value-even { border: 2px solid #8a8aa8; }
     #pack-summary h2 { margin: 0 0 6px; font-size: 1rem; color: #ffcb05; text-transform: uppercase; letter-spacing: 0.05em; }
     .summary-value { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
     .summary-points { font-size: 2.2rem; font-weight: 800; }
@@ -838,6 +846,7 @@
     <div id="pack"></div>
 
     <!-- Appears once every card is flipped: the points this pack earned. -->
+    <div id="pack-value" hidden></div>
     <div id="pack-summary" hidden></div>
 
   </section>
@@ -977,7 +986,7 @@
     const MAX_ROUNDS = 10;
 
     // Set this to false while testing if you want unlimited packs.
-    const ONE_PACK_PER_DAY = false;
+    const ONE_PACK_PER_DAY = true;
 
     // The name we use to save your pack in the browser's storage.
     const STORAGE_KEY = "lastPack";
@@ -1006,8 +1015,8 @@
     // Leave them empty and the leaderboards are simply switched off.
     // The publishable key (or the older "anon" key) is meant to be public: the database rules protect the data.
     // NEVER put the "service_role" or "secret" key here.
-    const SUPABASE_URL = "https://sfvndeaoewzenmnvefmz.supabase.co";        // like "https://abcdefghijkl.supabase.co"
-    const SUPABASE_ANON_KEY = "sb_publishable_ZIf6AIntLR1o8fXeNXAshA_WxjW_jqj";   // a long key starting with "eyJ" or "sb_publishable_"
+    const SUPABASE_URL = "";        // like "https://abcdefghijkl.supabase.co"
+    const SUPABASE_ANON_KEY = "";   // a long key starting with "eyJ" or "sb_publishable_"
     // New players get this many free starter packs when they pick a leaderboard name.
     const STARTER_PACKS = 5;
     const STARTER_KEY = "starterPacks";            // how many starter packs you have left
@@ -1043,6 +1052,7 @@
     const collectionSummary = document.getElementById("collection-summary");
     const collectionGrid = document.getElementById("collection-grid");
     const packSummary = document.getElementById("pack-summary");
+    const packValueBox = document.getElementById("pack-value");
     const tabAchievements = document.getElementById("tab-achievements");
     const achievementCount = document.getElementById("achievement-count");
     const viewAchievements = document.getElementById("view-achievements");
@@ -1278,9 +1288,44 @@
       reverse: ["reverse-holofoil", "reverse"]
     };
 
-    // The TCGplayer price (in US dollars) for the version that was drawn.
-    // Returns a number, or undefined if there's no price for that version.
+    // Default prices (in US dollars) for cards that have no market price, based on
+    // rarity. The first line whose words appear in the card's rarity wins, so the
+    // specific ones go first. These are rough guesses, so they stay small.
+    const DEFAULT_PRICE_BY_RARITY = [
+      [/special illustration|secret|hyper|rainbow|gold|crown|mythical|ultra/i, 3.00],
+      [/illustration|amazing|radiant|shiny|legend|prism|\bace\b|black white|ex\b|gx\b|vmax|vstar|\bv\b/i, 1.50],
+      [/double|holo|rare/i, 0.50],
+      [/uncommon/i, 0.15],
+      [/common/i, 0.10]
+    ];
+    const FALLBACK_DEFAULT_PRICE = 0.25;   // for cards with no rarity listed (promos, etc.)
+
+    // The default price for a card, from its rarity.
+    function getDefaultPrice(card) {
+      const rarity = card.rarity ? String(card.rarity) : "";
+      for (let i = 0; i < DEFAULT_PRICE_BY_RARITY.length; i++) {
+        if (DEFAULT_PRICE_BY_RARITY[i][0].test(rarity)) {
+          return DEFAULT_PRICE_BY_RARITY[i][1];
+        }
+      }
+      return FALLBACK_DEFAULT_PRICE;
+    }
+
+    // The price used everywhere on the site: the real TCGplayer price if there is
+    // one, otherwise the default for the card's rarity. Always a number.
     function getTcgplayerPrice(card, variant) {
+      const real = getRealTcgplayerPrice(card, variant);
+      return typeof real === "number" ? real : getDefaultPrice(card);
+    }
+
+    // True when the price we show is a rarity-based default, not a market price.
+    function isEstimatedPrice(card, variant) {
+      return typeof getRealTcgplayerPrice(card, variant) !== "number";
+    }
+
+    // The real TCGplayer price (in US dollars) for the version that was drawn.
+    // Returns a number, or undefined if there's no price for that version.
+    function getRealTcgplayerPrice(card, variant) {
       const tcgplayer = card.pricing ? card.pricing.tcgplayer : null;
       if (!tcgplayer) {
         return undefined;
@@ -1321,9 +1366,9 @@
       return undefined;   // reverse holo: Cardmarket has no price for it
     }
 
-    // Like chooseVariant, but only picks among versions that have a
-    // TCGplayer price. Returns nothing (null) if none of them do, which
-    // means the card has no usable pricing data and shouldn't be used.
+    // Like chooseVariant, but prefers versions that have a real TCGplayer price.
+    // If none do, any version can be drawn (it gets a rarity-based default price),
+    // so cards without price data can still be pulled and Master Sets stay completable.
     function chooseVariantWithPrice(card) {
       // The versions this card could be drawn as.
       const candidates = [];
@@ -1339,12 +1384,10 @@
 
       // Keep only the versions that have a price.
       const priced = candidates.filter(function (variant) {
-        return typeof getTcgplayerPrice(card, variant) === "number";
+        return typeof getRealTcgplayerPrice(card, variant) === "number";
       });
-      if (priced.length === 0) {
-        return null;
-      }
-      return priced[Math.floor(Math.random() * priced.length)];
+      const pool = priced.length > 0 ? priced : candidates;
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     // Is this card worth more than $100 on TCGplayer (for the version drawn)?
@@ -1372,12 +1415,9 @@
       const pricing = card.pricing || {};
 
       // The TCGplayer price for the version we drew.
-      let tcgplayerText;
-      if (pricing.tcgplayer) {
-        const price = getTcgplayerPrice(card, variant);
-        tcgplayerText = typeof price === "number"
-          ? formatMoney(price, "USD")
-          : "Not listed for this version";
+      let tcgplayerText = formatMoney(getTcgplayerPrice(card, variant), "USD");
+      if (isEstimatedPrice(card, variant)) {
+        tcgplayerText += " (estimated from rarity; no market price)";
       }
 
       // The Cardmarket price for the version we drew.
@@ -1493,6 +1533,10 @@
         badge.textContent = "No price";
       } else {
         badge.textContent = formatMoney(price, "USD");
+        if (isEstimatedPrice(entry.card, entry.variant)) {
+          badge.textContent = "~" + badge.textContent;   // "~" means estimated
+          badge.title = "Estimated from rarity (no market price)";
+        }
         if (!plain && price > LEGENDARY_PRICE) {
           badge.classList.add("price-legendary");
         } else if (!plain && price > EXPENSIVE_PRICE) {
@@ -1749,6 +1793,37 @@
     function showAlreadyOpenedMessage() {
       statusText.textContent = "You already opened a pack today! Come back tomorrow for a new one.";
       openButton.disabled = true;
+    }
+
+    // ---------- Sets that are left out of the game ----------
+
+    // These sets can't be drawn or bought, aren't on the Master Set page, and their
+    // cards are removed from collections (checked every time the site loads).
+    const EXCLUDED_SET_IDS = [
+      "pop1", "pop2", "pop3", "pop4", "pop5", "pop6", "pop7", "pop8", "pop9",   // POP Series 1-9
+      "xy0",                                                           // Kalos Starter Set
+      "basep", "np", "dpp", "hsp", "bwp", "xyp", "smp", "swshp", "svp", "mep",   // Black Star Promos
+      "bog"                                                            // Best of game
+    ];
+    // Names are checked too, in case a set has an id that isn't listed above.
+    const EXCLUDED_SET_NAMES = /black star promo|^pop series [1-9]$|^kalos starter set|^best of game/i;
+
+    function isExcludedSet(setId, setName) {
+      return (!!setId && EXCLUDED_SET_IDS.indexOf(String(setId).toLowerCase()) !== -1) ||
+        (!!setName && EXCLUDED_SET_NAMES.test(String(setName).trim()));
+    }
+
+    // A card's own set: the full card data has it.
+    function isExcludedCard(card) {
+      return !!card && !!card.set && isExcludedSet(card.set.id, card.set.name);
+    }
+
+    // The short card info (from the card list) only has an id like "pop1-3",
+    // so the set id is the part before the last dash.
+    function isExcludedBrief(brief) {
+      const id = String(brief.id || "");
+      const dash = id.lastIndexOf("-");
+      return dash > 0 && isExcludedSet(id.slice(0, dash), "");
     }
 
     // ---------- The collection ----------
@@ -3763,6 +3838,7 @@
       });
       if (!allFlipped) {
         packSummary.hidden = true;
+        packValueBox.hidden = true;
         updateBuyAnother();
         return;
       }
@@ -3793,9 +3869,32 @@
           packValue += price;
         }
       });
-      const valueBox = document.createElement("div");
-      valueBox.className = "summary-value";
-      valueBox.textContent = "Total pack value: " + formatMoney(packValue, "USD") + " (TCGplayer)";
+      // The value gets its own box above the summary box.
+      packValueBox.innerHTML = "";
+      const valueHeading = document.createElement("h2");
+      valueHeading.textContent = "Total pack value";
+      const valueTotal = document.createElement("div");
+      valueTotal.className = "value-total";
+      valueTotal.textContent = formatMoney(packValue, "USD");
+      packValueBox.appendChild(valueHeading);
+      packValueBox.appendChild(valueTotal);
+
+      // For a bought pack: profit or loss compared with what you paid.
+      const paidCents = currentPackBought && currentPack.length > 0 ? currentPack[0].paidCents : undefined;
+      if (typeof paidCents === "number") {
+        const paid = document.createElement("div");
+        paid.className = "value-paid";
+        paid.textContent = "You paid " + formatCents(paidCents);
+        const diff = Math.round(packValue * 100) - paidCents;   // in cents
+        const result = document.createElement("div");
+        result.className = "value-result " + (diff > 0 ? "value-profit" : diff < 0 ? "value-loss" : "value-even");
+        result.textContent = diff > 0 ? "Profit +" + formatCents(diff)
+          : diff < 0 ? "Loss \u2212" + formatCents(-diff)
+          : "Break even";
+        packValueBox.appendChild(paid);
+        packValueBox.appendChild(result);
+      }
+      packValueBox.hidden = false;
 
       const pointsBox = document.createElement("div");
       pointsBox.className = "summary-points";
@@ -3806,7 +3905,6 @@
         ? "No new achievements from this pack."
         : unlocked.length + (unlocked.length === 1 ? " achievement" : " achievements") + " unlocked";
       packSummary.appendChild(heading);
-      packSummary.appendChild(valueBox);
       packSummary.appendChild(pointsBox);
       packSummary.appendChild(sub);
 
@@ -4794,9 +4892,67 @@
     const SUBSET_CHANCE = 0.2;   // each card in a bought pack has a 20% chance to come from the subset
     const subsetOf = {};         // main set id -> subset set id (filled in when the sets load)
 
+    // Super-rare cards: left out of normal draws, and each bought pack has a
+    // 1 in RARE_ODDS chance to contain one (picked at random from the matches).
+    // The 30th Celebration "RGB" Mews are the three Mew #65 cards (R, G and B versions).
+    const RARE_ODDS = 500;
+    function isSuperRare(brief, setName) {
+      return simpleName(setName) === "30th celebration" &&
+        simpleName(brief.name || "") === "mew" &&
+        /^65/.test(String(brief.localId || ""));
+    }
+
     // Compare names ignoring case and punctuation ("Celebrations: Classic Collection").
     function simpleName(name) {
       return String(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    }
+
+    // Show each set's pack price in its menu entry. Sets whose price isn't known yet
+    // (no real price, and not estimated yet) say so; the price appears once it's worked out.
+    function updateShopOptionLabels() {
+      Array.prototype.forEach.call(shopSet.options, function (option) {
+        if (!option.dataset.name) {
+          return;
+        }
+        const price = getPackPrice(option.value);
+        option.textContent = option.dataset.name +
+          (price ? " (" + formatCents(price.cents) + ")" : " (price shown when selected)");
+      });
+    }
+
+    // Work out which set is each main set's subset (fills subsetOf). Returns the
+    // subset ids. Names must match, ignoring case and punctuation; if the exact name
+    // isn't found, a set named like the main set that ends with the subset's own
+    // words ("... Trainer Gallery") counts too.
+    function buildSubsetMap(sets) {
+      const idByName = {};
+      sets.forEach(function (set) {
+        idByName[simpleName(set.name)] = set.id;
+      });
+      const hiddenIds = {};
+      SUBSET_PAIRS.forEach(function (pair) {
+        const mainName = simpleName(pair[0]);
+        const subName = simpleName(pair[1]);
+        const mainId = idByName[mainName];
+        let subId = idByName[subName];
+        if (!subId) {
+          const tail = subName.indexOf(mainName) === 0 ? subName.slice(mainName.length).trim() : "";
+          sets.forEach(function (set) {
+            const name = simpleName(set.name);
+            if (!subId && tail && name !== mainName && name.indexOf(mainName) === 0 &&
+                name.slice(-tail.length) === tail) {
+              subId = set.id;
+            }
+          });
+        }
+        if (mainId && subId && mainId !== subId) {
+          subsetOf[mainId] = subId;
+          hiddenIds[subId] = true;
+        } else {
+          console.warn("Subset not found for " + pair[0] + " -> " + pair[1]);
+        }
+      });
+      return hiddenIds;
     }
 
     // Fill the "Set" menu with every set from TCGdex. Done once.
@@ -4806,35 +4962,28 @@
         return;
       }
       try {
-        const sets = await fetchFromApi(SETS_URL);
+        let sets = await fetchFromApi(SETS_URL);
+        sets = sets.filter(function (set) {
+          return !isExcludedSet(set.id, set.name);
+        });
         sets.sort(function (a, b) { return a.name.localeCompare(b.name); });
         shopSet.innerHTML = "";
 
         // Find each subset's set id, and leave subsets out of the menu.
-        const idByName = {};
-        sets.forEach(function (set) {
-          idByName[simpleName(set.name)] = set.id;
-        });
-        const hiddenIds = {};
-        SUBSET_PAIRS.forEach(function (pair) {
-          const mainId = idByName[simpleName(pair[0])];
-          const subId = idByName[simpleName(pair[1])];
-          if (mainId && subId && mainId !== subId) {
-            subsetOf[mainId] = subId;
-            hiddenIds[subId] = true;
-          }
-        });
+        const hiddenIds = buildSubsetMap(sets);
         sets.forEach(function (set) {
           if (hiddenIds[set.id]) {
             return;
           }
           const option = document.createElement("option");
           option.value = set.id;
-          const total = set.cardCount && set.cardCount.total ? " (" + set.cardCount.total + " cards)" : "";
-          option.textContent = set.name + total;
+          option.dataset.name = set.name;
+          option.textContent = set.name;
           shopSet.appendChild(option);
         });
         shopSetsLoaded = true;
+        updateShopOptionLabels();
+        loadBoosterPrices().then(updateShopOptionLabels);   // real prices fill in when pack-prices.json loads
         priceSet(shopSet.value);   // start working out the first set's price
       } catch (error) {
         console.error(error);
@@ -4968,6 +5117,7 @@
         pricingFailed[setId] = true;
       }
       delete pricingNow[setId];
+      updateShopOptionLabels();
       if (!viewShop.hidden) {
         renderShop();
       }
@@ -5035,17 +5185,33 @@
         });
         // A subset's cards get mixed in (if the set has one and it downloads fine).
         let subList = [];
+        if (Object.keys(subsetOf).length === 0) {
+          // The set list hasn't been loaded yet (you didn't visit the shop), so do it now.
+          try {
+            buildSubsetMap(await fetchFromApi(SETS_URL));
+          } catch (error) {
+            console.error(error);
+          }
+        }
         if (subsetOf[setId]) {
           try {
             const subset = await getSetDetail(subsetOf[setId]);
             subList = (subset.cards || []).filter(function (card) {
               return card.image;
             });
+            console.log("Subset for " + setId + ": " + subList.length + " cards from " + subsetOf[setId]);
           } catch (error) {
             console.error(error);
           }
         }
-        const chosen = await drawPricedCards(list, subList);
+        // Super-rare cards are taken out of the normal pool...
+        const setName = set.name || "";
+        const rareCards = list.filter(function (card) { return isSuperRare(card, setName); });
+        const normalList = list.filter(function (card) { return !isSuperRare(card, setName); });
+        // ...and only show up on a 1-in-500 lucky pack.
+        const lucky = rareCards.length > 0 && Math.random() < 1 / RARE_ODDS;
+        const forced = lucky ? rareCards[Math.floor(Math.random() * rareCards.length)] : null;
+        const chosen = await drawPricedCards(normalList, subList, forced);
         if (chosen.length < PACK_SIZE) {
           const problem = new Error("Not enough cards with pricing data in this set.");
           problem.userMessage = "This set doesn't have enough cards with pricing data to make a pack. You weren't charged.";
@@ -5065,6 +5231,7 @@
             variant: item.variant,
             packDate: getToday(),
             packId: packId,
+            paidCents: price.cents,                           // what you paid, for profit/loss
             buySetId: setId,                                  // the set you bought (a subset card
             buySetName: set.name || item.card.set.name        // still counts as this set's pack)
           };
@@ -5079,8 +5246,8 @@
         renderPack();
         savePack();
         // Use the set's name, or the card's set name if the set page has none.
-        const setName = set.name || (currentPack[0].card.set ? currentPack[0].card.set.name : "");
-        statusText.textContent = "You bought a " + setName + " pack for " + formatCents(price.cents) + ".";
+        const boughtName = set.name || (currentPack[0].card.set ? currentPack[0].card.set.name : "");
+        statusText.textContent = "You bought a " + boughtName + " pack for " + formatCents(price.cents) + ".";
         shopStatus.textContent = "";
         showView("pack");
         window.scrollTo({ top: 0, behavior: "smooth" });   // the new pack is at the top
@@ -5127,10 +5294,24 @@
     // that have no price. If the pack still isn't full, we go around again.
     // Returns a list of { brief, card, variant } (shorter than a pack if we ran out).
     // If subList is given, each card has a SUBSET_CHANCE chance to come from it.
-    async function drawPricedCards(list, subList) {
+    // "forced" is a card (brief) that must be in the pack, if it has a price.
+    async function drawPricedCards(list, subList, forced) {
       const chosen = [];                // the cards that made it into the pack
       const triedIds = new Set();       // every card we've already looked at
       let round = 0;
+
+      if (forced) {
+        triedIds.add(forced.id);
+        try {
+          const card = await fetchFromApi(API_URL + "/" + forced.id);
+          const variant = chooseVariantWithPrice(card);
+          if (variant !== null) {
+            chosen.push({ brief: forced, card: card, variant: variant });
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
 
       while (chosen.length < PACK_SIZE && round < MAX_ROUNDS) {
         round++;
@@ -5149,6 +5330,9 @@
         // Keep only cards that have a price for the version we'll draw.
         cards.forEach(function (card, i) {
           triedIds.add(briefs[i].id);
+          if (isExcludedCard(card)) {
+            return;                     // a set that's left out of the game
+          }
           const variant = chooseVariantWithPrice(card);
           if (variant !== null) {
             chosen.push({ brief: briefs[i], card: card, variant: variant });
@@ -5188,7 +5372,7 @@
           const list = await fetchFromApi(API_URL);
           // Keep only cards that have a picture.
           allCards = list.filter(function (card) {
-            return card.image;
+            return card.image && !isExcludedBrief(card);
           });
         }
 
@@ -5267,6 +5451,14 @@
 
     // When the page first loads: load your collection and your sort choice.
     collection = loadCollection();
+    // Remove cards from sets that are no longer in the game.
+    const keptItems = collection.filter(function (item) {
+      return !isExcludedCard(item.card);
+    });
+    if (keptItems.length !== collection.length) {
+      collection = keptItems;
+      saveCollection();
+    }
     try {
       const savedSort = localStorage.getItem(SORT_KEY);
       // Only use the saved choice if it's still one of the menu options.
@@ -5280,12 +5472,17 @@
     // If you already opened a pack today, bring back that pack
     // (with your flipped cards) and lock the button.
     const savedPack = loadSavedPack();
+    if (savedPack && Array.isArray(savedPack.pack)) {
+      savedPack.pack = savedPack.pack.filter(function (entry) {
+        return !isExcludedCard(entry.card);
+      });
+    }
     // Packs from before the shop existed: today's saved pack was the free one.
     if (savedPack && savedPack.date === getToday() && !savedPack.bought && !savedPack.starter && !readDailyDate()) {
       saveDailyDate();
     }
     // Bring back today's pack, or a bought pack that still has cards face down.
-    if (savedPack && ((ONE_PACK_PER_DAY && savedPack.date === getToday()) ||
+    if (savedPack && savedPack.pack.length > 0 && ((ONE_PACK_PER_DAY && savedPack.date === getToday()) ||
         ((savedPack.bought || savedPack.starter) && savedPack.pack.some(function (entry) { return !entry.flipped; })))) {
       currentPack = savedPack.pack;
       currentPackBought = !!savedPack.bought;
