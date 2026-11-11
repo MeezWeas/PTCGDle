@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pokémon Pack Opener</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- STYLES: how the page looks. Change colors and sizes here. -->
   <style>
@@ -149,8 +152,15 @@
       display: flex; align-items: flex-start; justify-content: center; padding-top: 2px;
       border: 1px solid #c9a227; box-sizing: border-box; overflow: hidden; font-size: 0.45rem; color: #fff;
     }
-    .rl-pocket.evolved { background: #b71c1c; }
-    .rl-pocket.unevolved { background: #111; }
+    /* Each Pokémon is split down the middle: left half = type (red Fire / blue Water),
+       right half = white (Evolved) or black (Unevolved). */
+    .rl-pocket.fire, .rl-cell.fire { --t: #c62828; }
+    .rl-pocket.water, .rl-cell.water { --t: #1565c0; }
+    .rl-pocket.evolved, .rl-cell.evolved { --e: #f2f2f2; }
+    .rl-pocket.unevolved, .rl-cell.unevolved { --e: #111; }
+    .rl-pocket.fire, .rl-pocket.water, .rl-cell.fire, .rl-cell.water {
+      background: linear-gradient(90deg, var(--t) 0 50%, var(--e) 50% 100%);
+    }
     .rl-pocket.zero { background: #1b7f3b; }
     .rl-pocket img { width: 30px; height: 30px; image-rendering: pixelated; }
     .rl-pocket.zero img { width: 14px; height: 14px; position: absolute; left: 50%; margin-left: -7px; }
@@ -177,15 +187,17 @@
       color: #fff; font: inherit; cursor: pointer; padding: 2px; font-size: 0.65rem; line-height: 1.1;
     }
     .rl-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .rl-cell.evolved { background: #b71c1c; }
-    .rl-cell.unevolved { background: #151515; }
     .rl-cell.zero { background: #1b7f3b; grid-column: 1; grid-row: 1 / span 3; border-radius: 40px 0 0 40px; font-size: 0.7rem; }
     .rl-cell img { width: 44px; height: 44px; display: block; image-rendering: pixelated; }
     .rl-cell.zero img { width: 40px; height: 40px; margin: -6px 0; }
     .rl-cell .tag { display: block; opacity: 0.85; font-size: 0.6rem; }
+    .rl-cell .nm { background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px 4px; color: #fff; margin-top: -2px; }
+    .rl-cell:not(.zero) .tag { background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 0 4px; color: #fff; opacity: 1; margin-top: 1px; }
     .rl-cell:hover, .rl-outside button:hover { filter: brightness(1.25); }
     .rl-outside button { background: #0b6b3a; padding: 14px 6px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.03em; }
-    .rl-outside button.b-evolved { background: #b71c1c; }
+    .rl-outside button.b-evolved { background: #f2f2f2; color: #111; }
+    .rl-outside button.b-fire { background: #c62828; }
+    .rl-outside button.b-water { background: #1565c0; }
     .rl-outside button.b-unevolved { background: #151515; }
     .rl-outside small { display: block; opacity: 0.8; font-size: 0.65rem; font-weight: 400; }
     .rl-cell:disabled, .rl-outside button:disabled { cursor: not-allowed; }
@@ -195,6 +207,7 @@
       background: #ffcb05; color: #1b1b2f; font-weight: 800; font-size: 0.65rem;
       border: 3px dashed #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
     }
+    .rl-outside .rl-chip { left: auto; right: 12px; transform: translateY(-50%); }   /* keep the label readable */
     .rl-cell.won, .rl-outside button.won { box-shadow: inset 0 0 0 3px #ffcb05, 0 0 14px #ffcb05; z-index: 2; }
 
     .bj-table { background: #14502f; border: 2px solid #0d3a22; border-radius: 14px; padding: 12px 14px; }
@@ -908,17 +921,411 @@
       font-size: 0.8rem;
       opacity: 0.7;
     }
+
+    /* =====================================================================
+       THEME: a card collector's desk at night.
+       Deep violet-black surfaces, holographic "foil" for actions and rarity,
+       gold only for money. These rules come last so they win over the older ones.
+       ===================================================================== */
+    :root {
+      --ink: #0f0d1c;
+      --sleeve: #1a1733;
+      --sleeve-2: #141229;
+      --raised: #241f45;
+      --line: rgba(255, 255, 255, 0.1);
+      --line-strong: rgba(255, 255, 255, 0.2);
+      --text: #f3effb;
+      --muted: #a9a3c7;
+      --gold: #f5c542;
+      --gold-soft: #ffe08a;
+      --good: #4ade80;
+      --bad: #fb7185;
+      --foil: linear-gradient(115deg, #6ee7f9 0%, #a78bfa 35%, #f9a8d4 68%, #fde68a 100%);
+      --display: "Unbounded", "Figtree", system-ui, sans-serif;
+      --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      padding: 20px 24px 40px;
+      min-height: 100vh;
+      font-family: var(--body);
+      line-height: 1.45;
+      color: var(--text);
+      background-color: var(--ink);
+      background-image:
+        radial-gradient(1100px 560px at 88% -8%, rgba(124, 92, 255, 0.24), transparent 62%),
+        radial-gradient(900px 520px at -8% 18%, rgba(24, 170, 205, 0.15), transparent 62%),
+        radial-gradient(800px 500px at 50% 115%, rgba(249, 168, 212, 0.08), transparent 60%);
+      background-attachment: fixed;
+    }
+    button, input, select { font-family: var(--body); }
+    ::selection { background: rgba(167, 139, 250, 0.45); }
+    :focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+    .card:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 4px; border-radius: 12px; }
+    * { scrollbar-width: thin; scrollbar-color: #3b3566 transparent; }
+
+    /* ---- Masthead: wordmark on the left, wallet on the right ---- */
+    #masthead {
+      max-width: 1260px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      text-align: left;
+    }
+    h1 {
+      margin: 0;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: clamp(1.35rem, 3.2vw, 2rem);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      background: linear-gradient(100deg, #ffffff 0%, #cfe9ff 22%, #d9c8ff 44%, #ffd1ea 66%, #ffffff 88%);
+      background-size: 260% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: wordmark-sheen 2.6s ease-out 0.2s 1 both;
+    }
+    @keyframes wordmark-sheen {
+      from { background-position: 100% 0; }
+      to   { background-position: 0% 0; }
+    }
+    #wallet {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 8px 18px 8px 10px;
+      border: 1px solid rgba(245, 197, 66, 0.45);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(245, 197, 66, 0.14), rgba(245, 197, 66, 0.05));
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: var(--gold-soft);
+      font-variant-numeric: tabular-nums;
+    }
+    #wallet::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 46%, rgba(120, 76, 0, 0.45) 47% 56%, transparent 57%),
+        radial-gradient(circle at 32% 28%, #fff3b0, #f5c542 55%, #c58a0a);
+      box-shadow: 0 0 10px rgba(245, 197, 66, 0.45);
+    }
+
+    /* ---- Page tabs: plain text with a foil underline on the current page ---- */
+    #tabs {
+      max-width: 1260px;
+      margin: 14px auto 28px;
+      gap: 2px;
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      scrollbar-width: none;
+    }
+    #tabs::-webkit-scrollbar { display: none; }
+    .tab-button {
+      position: relative;
+      flex: none;
+      padding: 12px 14px 14px;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s;
+    }
+    .tab-button:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+    .tab-button.active { background: transparent; color: #fff; }
+    .tab-button.active:hover { background: rgba(255, 255, 255, 0.04); }
+    .tab-button::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: -1px;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      background: var(--foil);
+      transform: scaleX(0);
+      transition: transform 0.25s;
+    }
+    .tab-button.active::after { transform: scaleX(1); }
+
+    /* ---- Panels ("sleeves") ---- */
+    .shop-box, .ach-section, .set-row, .dupe-row, #info-box, #pack-summary, #pack-value, #card-details {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--sleeve), var(--sleeve-2));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 32px -16px rgba(0, 0, 0, 0.7);
+    }
+    .shop-box, .ach-section, #info-box, #pack-summary, #pack-value { border-radius: 18px; }
+    .shop-box { padding: 20px; }
+    .set-row, .dupe-row { border-radius: 14px; }
+    .shop-box h2, .ach-section > summary {
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .shop-box p { color: var(--muted); }
+    .shop-box h2 { margin-bottom: 10px; }
+    .set-row.complete { border-color: rgba(245, 197, 66, 0.6); box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.25), 0 0 26px -6px rgba(245, 197, 66, 0.35); }
+    .set-bar { height: 8px; background: rgba(255, 255, 255, 0.08); }
+    .set-bar-fill { background: var(--foil); }
+    .set-row.complete .set-bar-fill { background: linear-gradient(90deg, #f5c542, #ffe08a); }
+    .set-percent { font-family: var(--display); font-weight: 500; font-size: 1rem; }
+    .set-name, .dupe-name, .ach-name { font-weight: 700; }
+    .set-meta, .dupe-meta, .ach-desc { color: var(--muted); opacity: 1; }
+    .ach { border-width: 1px; border-radius: 14px; background: linear-gradient(180deg, var(--raised), var(--sleeve)); box-shadow: 0 0 22px -8px rgba(245, 197, 66, 0.35); }
+    .ach-section[open] > summary { border-bottom-color: var(--line); }
+
+    /* ---- How-it-works box ---- */
+    #info-box { padding: 16px 76px 8px 20px; }
+    #info-box strong { font-family: var(--display); font-weight: 500; font-size: 0.95rem; }
+    #info-box p { color: var(--muted); }
+    #info-box b { color: var(--text); font-weight: 700; }
+    #info-hide { border-color: var(--line-strong); color: var(--muted); border-radius: 8px; }
+    #info-hide:hover { color: var(--text); border-color: var(--text); }
+
+    /* ---- Form controls ---- */
+    #sort-select, #sets-sort, #shop-set, #lb-name-input, #achievement-tools input {
+      padding: 9px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: #100e22;
+      color: var(--text);
+    }
+    #sort-select:focus-visible, #sets-sort:focus-visible, #shop-set:focus-visible, #lb-name-input:focus-visible { border-color: #c4b5fd; }
+    #collection-toolbar label, #sets-toolbar label, .shop-box label { color: var(--muted); }
+    #collection-summary, #sets-summary, #achievement-summary { color: var(--muted); opacity: 1; }
+
+    /* ---- Buttons: foil = do the thing, gold = money in, ghost = everything else ---- */
+    #shop-buy, #lb-name-save, #lb-refresh, .gc-actions button.gc-main {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      background: var(--foil);
+      background-size: 180% 100%;
+      color: #14102a;
+      font-weight: 700;
+      transition: background-position 0.4s, transform 0.15s;
+    }
+    #shop-buy:hover:not(:disabled), #lb-name-save:hover:not(:disabled), #lb-refresh:hover:not(:disabled),
+    .gc-actions button.gc-main:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-1px); }
+    #sell-all, .sell-button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffe08a, #f5c542);
+      color: #2a1c00;
+      font-weight: 700;
+    }
+    #sell-all:hover:not(:disabled), .sell-button:hover:not(:disabled) { filter: brightness(1.07); }
+    #lb-name-cancel, #reveal-button, #starter-button, #buy-another, .gc-actions button, .gc-pick {
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-weight: 600;
+    }
+    #lb-name-cancel:hover, #reveal-button:hover, #starter-button:hover:not(:disabled), #buy-another:hover:not(:disabled),
+    .gc-actions button:hover:not(:disabled), .gc-pick:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text); }
+    .gc-actions button.gc-main { border: none; color: #14102a; }
+    button:disabled { cursor: not-allowed; }
+
+    /* ---- The Open a pack button looks like a foil pack: crimped top and bottom ---- */
+    #open-button {
+      position: relative;
+      padding: 22px 64px;
+      border: none;
+      border-radius: 10px;
+      background: var(--foil);
+      background-size: 220% 100%;
+      color: #14102a;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+      box-shadow: 0 14px 34px -10px rgba(167, 139, 250, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+      transition: background-position 0.7s, transform 0.15s, box-shadow 0.3s;
+    }
+    #open-button::before, #open-button::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: repeating-linear-gradient(90deg, rgba(20, 16, 42, 0.3) 0 2px, transparent 2px 6px);
+      pointer-events: none;
+    }
+    #open-button::before { top: 0; border-radius: 10px 10px 0 0; }
+    #open-button::after { bottom: 0; border-radius: 0 0 10px 10px; }
+    #open-button:hover:not(:disabled) { background-position: 100% 0; transform: translateY(-2px); box-shadow: 0 18px 40px -10px rgba(167, 139, 250, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
+    #open-button:disabled { opacity: 0.45; filter: grayscale(0.5); }
+    #starter-button { margin-left: 10px; padding: 14px 22px; font-size: 0.95rem; border-color: rgba(167, 139, 250, 0.7); color: #d9ccff; }
+    #status { color: var(--muted); }
+    #hint { color: var(--muted); opacity: 1; }
+    #buy-another { padding: 12px 22px; margin: 6px auto 14px; }
+
+    /* ---- Card backs: foil-violet with a ball in the middle ---- */
+    .card-back {
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 7px, transparent 7px 14px),
+        radial-gradient(circle at 30% 18%, #5a4bd6, #231a63 60%, #140f3a);
+      box-shadow: inset 0 0 0 5px rgba(20, 15, 58, 0.9), inset 0 0 0 6px rgba(167, 139, 250, 0.6);
+    }
+    .card-back::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 46px;
+      height: 46px;
+      margin: -23px 0 0 -23px;
+      border-radius: 50%;
+      border: 3px solid #0d0a26;
+      background: linear-gradient(#f43f5e 0 44%, #0d0a26 44% 56%, #f4f1ff 56%);
+      box-shadow: 0 0 18px rgba(167, 139, 250, 0.7);
+    }
+    .card-back::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin: -6px 0 0 -6px;
+      border-radius: 50%;
+      border: 3px solid #0d0a26;
+      background: #f4f1ff;
+      box-sizing: border-box;
+    }
+
+    /* ---- Price stickers, like the ones on cards in a shop case ---- */
+    .price-badge:not(.price-high):not(.price-legendary):not(.price-none) {
+      border: none;
+      border-radius: 6px;
+      padding: 3px 11px;
+      background: #f4ecd8;
+      color: #241c0e;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+      transform: translateX(-50%) rotate(-2deg);
+    }
+    .price-badge.price-none { border-style: dashed; border-radius: 6px; background: rgba(20, 18, 41, 0.85); }
+    .status-tag { font-family: var(--body); letter-spacing: 0.04em; border-width: 1px; }
+
+    /* ---- Pack result boxes ---- */
+    #pack-summary, #pack-value { border-color: var(--line); padding: 20px 24px; }
+    #pack-value { margin-bottom: -14px; }
+    #pack-value h2, #pack-summary h2 {
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 0.9rem;
+      letter-spacing: -0.01em;
+      text-transform: none;
+      color: var(--muted);
+    }
+    .value-total { font-family: var(--display); font-weight: 700; font-size: 2.2rem; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+    .value-paid { color: var(--muted); opacity: 1; }
+    .value-result { font-family: var(--display); font-weight: 500; font-size: 0.95rem; border-width: 1px; }
+    .value-profit { color: var(--good); border-color: var(--good); }
+    .value-loss { color: var(--bad); border-color: var(--bad); }
+    .summary-points {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 2.2rem;
+      letter-spacing: -0.03em;
+      background: var(--foil);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      display: inline-block;
+    }
+    .summary-sub { color: var(--muted); opacity: 1; }
+    .summary-chip { border-width: 1px; background: rgba(255, 255, 255, 0.04); }
+
+    /* ---- Leaderboard ---- */
+    .lb-list { padding-left: 26px; }
+    .lb-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .lb-list li:last-child { border-bottom: none; }
+    .lb-list li::marker { color: var(--muted); font-weight: 600; }
+    .lb-list li .lb-score { font-family: var(--display); font-weight: 500; font-size: 0.9rem; color: var(--text); }
+    .lb-list li.me { color: #fff; box-shadow: inset 3px 0 0 #a78bfa; padding-left: 8px; margin-left: -8px; background: linear-gradient(90deg, rgba(167, 139, 250, 0.14), transparent); }
+
+    /* ---- Game Corner controls ---- */
+    .gc-pick { padding: 9px 22px; border-radius: 999px; }
+    .gc-pick.active { background: var(--foil); color: #14102a; border-color: transparent; font-weight: 700; }
+    .gc-chip { border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); color: var(--text); font-weight: 600; }
+    .gc-chip.active { border-color: var(--gold); background: rgba(245, 197, 66, 0.15); color: var(--gold-soft); }
+    .gc-result.win { color: var(--good); }
+    .gc-result.lose { color: var(--bad); }
+    .gc-note { color: var(--muted); opacity: 1; }
+    .gc-total { font-family: var(--display); font-weight: 500; font-size: 0.9rem; }
+
+    /* ---- Pop-ups ---- */
+    .notice {
+      border: 1px solid rgba(167, 139, 250, 0.6);
+      border-radius: 14px;
+      background: linear-gradient(180deg, #2a2452, #1d1941);
+      box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.7), 0 0 30px -8px rgba(167, 139, 250, 0.5);
+    }
+    .notice strong { font-family: var(--display); font-weight: 500; font-size: 0.95rem; color: #fff; }
+    #modal { background: rgba(8, 6, 20, 0.9); backdrop-filter: blur(6px); }
+    #modal-close { background: var(--text); color: var(--ink); width: 38px; height: 38px; }
+    #modal-close:hover { background: #fff; }
+    #card-details { border-radius: 14px; }
+    #card-details th { color: var(--muted); font-weight: 600; }
+    #card-details th, #card-details td { border-bottom-color: var(--line); }
+
+    .ghost-button {
+      margin-left: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ghost-button:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--text); }
+    footer { color: var(--muted); max-width: 1260px; margin: 48px auto 0; padding-top: 18px; border-top: 1px solid var(--line); opacity: 1; font-size: 0.78rem; }
+
+    @media (max-width: 640px) {
+      body { padding: 16px 14px 32px; }
+      #masthead { align-items: flex-start; }
+      #open-button { padding: 20px 44px; }
+      #starter-button { margin: 10px 0 0; }
+      .shop-box { padding: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 
 <body>
   <!-- PAGE CONTENT: the pieces you see on screen. -->
-  <h1>Pokémon Pack Opener</h1>
+  <header id="masthead">
+    <h1>Pokémon Pack Opener</h1>
+    <!-- Your money. It goes up when you sell duplicates and down when you buy packs. -->
+    <div id="wallet">$0.00</div>
+  </header>
 
-  <!-- Buttons to switch between the two pages. -->
-  <!-- Your money. It goes up when you sell duplicates and down when you buy packs. -->
-  <div id="wallet">💰 $0.00</div>
-
+  <!-- Buttons to switch between the pages. -->
   <nav id="tabs">
     <button class="tab-button active" id="tab-pack" type="button">Open packs</button>
     <button class="tab-button" id="tab-collection" type="button">Collection (<span id="collection-count">0</span>)</button>
@@ -1069,7 +1476,7 @@
   <!-- PAGE 7: the Game Corner (casino games played with your wallet money). -->
   <section id="view-gamecorner" hidden>
     <div class="shop-box">
-      <h2>🎰 Game Corner</h2>
+      <h2>Game Corner</h2>
       <p>Bet your wallet money on a game. Winnings are added to your wallet right away. Play for fun and only bet what you don't need for packs!</p>
       <div class="gc-games">
         <button type="button" id="gc-pick-roulette" class="gc-pick active">Roulette</button>
@@ -1080,7 +1487,7 @@
     <!-- ROULETTE -->
     <div class="shop-box" id="gc-roulette">
       <h2>Pokémon Roulette</h2>
-      <p class="gc-note">Bet limit: $1,000 per spin, in total. 37 pockets: 36 Pokémon and one Jigglypuff-line "zero" pocket. Place bets, then spin.
+      <p class="gc-note">Bet limit: $1,000 per spin, in total. 37 pockets: 36 Pokémon and one Jigglypuff-line "zero" pocket. Each Pokémon is split in half: the left is its type (red Fire, blue Water) and the right is white (Evolved) or black (Unevolved), so Charizard is red/white. Place bets, then spin.
         Straight-up (one Pokémon) pays 35 to 1. Evolved / Unevolved and Fire / Water pay 1 to 1.
         The zero pocket loses every Evolved/Unevolved and Fire/Water bet (house edge 2.70%, like European roulette).</p>
       <div class="rl-wheel-wrap"><div id="rl-wheel" class="rl-wheel"></div></div>
@@ -4706,7 +5113,7 @@
         lbNameInfo.appendChild(document.createTextNode(". "));
         const change = document.createElement("button");
         change.type = "button";
-        change.className = "sell-button";
+        change.className = "ghost-button";
         change.textContent = "Change name";
         change.addEventListener("click", function () {
           lbRenaming = true;
@@ -4859,7 +5266,7 @@
     }
 
     function updateWallet() {
-      walletBox.textContent = "💰 " + formatCents(money);
+      walletBox.textContent = formatCents(money);
       updateBuyAnother();
     }
 
@@ -5786,6 +6193,7 @@
     let rlBets = {};          // key -> cents
     let rlLastBets = {};
     let rlSpinning = false;
+    let rlSettled = false;    // true after a spin: your bets stay on the board until you start a new bet
     let rlRotation = 0;       // how far the wheel has turned (degrees)
     const rlPocketEls = [];   // the wheel's little circles, in order
     const rlBetEls = {};      // key -> the button you click to bet there
@@ -5822,7 +6230,8 @@
       const step = 360 / RL_WHEEL.length;
       RL_WHEEL.forEach(function (pocket, i) {
         const el = document.createElement("div");
-        el.className = "rl-pocket " + (pocket.zero ? "zero" : pocket.evolved ? "evolved" : "unevolved");
+        el.className = "rl-pocket " + (pocket.zero ? "zero" : (pocket.type === "Fire" ? "fire " : "water ") +
+          (pocket.evolved ? "evolved" : "unevolved"));
         el.style.transform = "rotate(" + (i * step) + "deg)";
         el.title = pocket.name;
         if (pocket.zero) {
@@ -5867,14 +6276,17 @@
       RL_WHEEL.slice(1).forEach(function (pocket, i) {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "rl-cell " + (pocket.evolved ? "evolved" : "unevolved");
+        button.className = "rl-cell " + (pocket.type === "Fire" ? "fire " : "water ") + (pocket.evolved ? "evolved" : "unevolved");
         button.style.gridColumn = String(Math.floor(i / 3) + 2);
         button.style.gridRow = String((i % 3) + 1);
         button.appendChild(rlImage(pocket.id, pocket.name));
-        button.appendChild(document.createTextNode(pocket.name));
+        const nameLabel = document.createElement("span");
+        nameLabel.className = "nm";
+        nameLabel.textContent = pocket.name;
+        button.appendChild(nameLabel);
         const tag = document.createElement("span");
         tag.className = "tag";
-        tag.textContent = (pocket.type === "Fire" ? "🔥 " : "💧 ") + pocket.type;
+        tag.textContent = (pocket.type === "Fire" ? "🔥 " : "💧 ") + (pocket.evolved ? "Evolved" : "Unevolved");
         button.appendChild(tag);
         button.addEventListener("click", function () { rlAddBet(pocket.key); });
         rlGridBox.appendChild(button);
@@ -5886,6 +6298,14 @@
     function rlAddBet(key) {
       if (rlSpinning) {
         return;
+      }
+      if (rlSettled) {          // starting a new round: the old bets come off the board
+        rlBets = {};
+        rlSettled = false;
+        rlResult.className = "gc-result";
+        rlResult.textContent = "Place your bets!";
+        rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
+        rlRefresh();
       }
       if (rlTotalBet() + gcChip > GC_MAX_BET) {
         rlResult.className = "gc-result lose";
@@ -5910,7 +6330,9 @@
         if (old) {
           old.remove();
         }
-        el.classList.remove("won");
+        if (!rlSettled) {
+          el.classList.remove("won");
+        }
         if (rlBets[key]) {
           const chip = document.createElement("span");
           chip.className = "rl-chip";
@@ -5920,13 +6342,16 @@
       });
       const total = rlTotalBet();
       rlTotalText.textContent = total > 0 ? "Total bet: " + formatCents(total) : "";
-      rlSpinButton.disabled = rlSpinning || total <= 0;
+      rlSpinButton.disabled = rlSpinning || rlSettled || total <= 0;
       rlClearButton.disabled = rlSpinning || total <= 0;
       rlRebetButton.disabled = rlSpinning || Object.keys(rlLastBets).length === 0;
     }
 
     rlClearButton.addEventListener("click", function () {
       rlBets = {};
+      rlSettled = false;
+      rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
+      Object.keys(rlBetEls).forEach(function (key) { rlBetEls[key].classList.remove("won"); });
       rlRefresh();
     });
     rlRebetButton.addEventListener("click", function () {
@@ -5943,6 +6368,9 @@
         return;
       }
       rlBets = Object.assign({}, rlLastBets);
+      rlSettled = false;
+      rlPocketEls.forEach(function (el) { el.classList.remove("won"); });
+      Object.keys(rlBetEls).forEach(function (key) { rlBetEls[key].classList.remove("won"); });
       rlRefresh();
     });
 
@@ -5981,7 +6409,7 @@
       money = money - total + outcome.returned;
       saveMoney();               // (the wallet display updates after the animation, so it doesn't spoil it)
       rlLastBets = bets;
-      rlBets = {};
+      rlSettled = true;          // the bets stay on the board until you start a new round
       rlRefresh();
       rlResult.className = "gc-result";
       rlResult.textContent = "Spinning...";
@@ -6011,10 +6439,7 @@
         (net > 0 ? "You won " + formatCents(net) + "!" : net < 0 ? "You lost " + formatCents(-net) + "." : "You broke even.");
       rlSpinning = false;
       updateWallet();
-      // Keep the chips on the board shown as "won" until the next bet; rlRefresh would clear the glow.
-      rlSpinButton.disabled = true;
-      rlClearButton.disabled = true;
-      rlRebetButton.disabled = false;
+      rlRefresh();
     });
 
     // ---------------- Blackjack ----------------
