@@ -986,7 +986,7 @@
     const MAX_ROUNDS = 10;
 
     // Set this to false while testing if you want unlimited packs.
-    const ONE_PACK_PER_DAY = false;
+    const ONE_PACK_PER_DAY = true;
 
     // The name we use to save your pack in the browser's storage.
     const STORAGE_KEY = "lastPack";
@@ -1824,6 +1824,35 @@
       const id = String(brief.id || "");
       const dash = id.lastIndexOf("-");
       return dash > 0 && isExcludedSet(id.slice(0, dash), "");
+    }
+
+    // ---------- Sets that can't be bought ----------
+
+    // These sets aren't sold in the shop and aren't listed on the Master Set page.
+    // (You can still pull their cards if they come up in a daily pack, and your cards stay in
+    // your collection.) Names are compared ignoring case and punctuation, from the start of the
+    // name, so "BW Trainer Kit: Excadrill & Zoroark" matches "bw trainer kit".
+    const NOT_BUYABLE_NAMES = [
+      "bw trainer kit", "celestial guardians", "crimson blaze", "dp trainer kit", "eevee grove",
+      "ex trainer kit", "extradimensional crisis", "fantastical parade", "genetic apex",
+      "hs trainer kit", "jumbo cards", "mcdonald", "mega rising", "miscellaneous promos",
+      "my first battle", "mythical island", "paldean wonders", "card creator pack", "pokemon futsal",
+      "promos a", "radiant collection", "sample", "scarlet violet energ", "secluded springs",
+      "shining revelry", "sm trainer kit", "space time smackdown", "triumphant light",
+      "w promotional", "wisdom of the sea and sky", "xy trainer kit", "yellow a alternate"
+    ];
+
+    function isNotBuyableSet(setName) {
+      const name = String(setName || "").toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")        // pokémon -> pokemon
+        .replace(/[^a-z0-9]+/g, " ").trim();
+      return NOT_BUYABLE_NAMES.some(function (start) {
+        if (start === "sample" || start === "promos a") {
+          return name === start;                            // exact: "Sample", "Promos-A"
+        }
+        return name.indexOf(start) === 0 || (start === "card creator pack" && name.indexOf(start) !== -1) ||
+          (start === "pokemon futsal" && name.indexOf("futsal") !== -1);
+      });
     }
 
     // ---------- The collection ----------
@@ -3948,7 +3977,9 @@
         sets[set.id].owned[item.card.id] = item;   // the same card twice counts once
       });
 
-      return Object.keys(sets).map(function (id) {
+      return Object.keys(sets).filter(function (id) {
+        return !isNotBuyableSet(sets[id].name);
+      }).map(function (id) {
         const entry = sets[id];
         const meta = setMeta[id];
         entry.ownedCount = Object.keys(entry.owned).length;
@@ -4964,7 +4995,7 @@
       try {
         let sets = await fetchFromApi(SETS_URL);
         sets = sets.filter(function (set) {
-          return !isExcludedSet(set.id, set.name);
+          return !isExcludedSet(set.id, set.name) && !isNotBuyableSet(set.name);
         });
         sets.sort(function (a, b) { return a.name.localeCompare(b.name); });
         shopSet.innerHTML = "";
@@ -5133,7 +5164,7 @@
       if (set && currentPack[0].buySetId) {
         set = { id: currentPack[0].buySetId, name: currentPack[0].buySetName || set.name };
       }
-      if (!currentPackBought || !allFlipped || !set) {
+      if (!currentPackBought || !allFlipped || !set || isNotBuyableSet(set.name)) {
         buyAnother.hidden = true;
         return;
       }
